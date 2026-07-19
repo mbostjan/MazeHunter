@@ -20,3 +20,5 @@
   progressive compositions, and automatic cycle advancement.
 - Profile scoring, chain multipliers, lives, contact damage, safe protected
   respawning, cycle bonuses, game over, and restart.
+- Original title/instructions presentation, authoritative flow state, complete
+  solo HUD, pause/resume, in-run restart, and return-to-title controls.

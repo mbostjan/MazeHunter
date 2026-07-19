@@ -20,6 +20,9 @@ Survival coverage verifies three-hit game over, respawn delay, protection,
 reset, enemy contact, and farthest-valid-tile selection. Scoring coverage
 verifies profile values, multiplier growth/cap, timeout, and cycle bonuses.
 
+Flow tests cover initial title state, instructions, pause/resume simulation
+gating, game-over restart, return to title, and rejected invalid transitions.
+
 ## Milestone 1 manual smoke procedure
 
 1. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1`.

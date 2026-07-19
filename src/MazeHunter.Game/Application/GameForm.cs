@@ -9,6 +9,7 @@ using MazeHunter.Core.Players;
 using MazeHunter.Core.Rounds;
 using MazeHunter.Core.Scoring;
 using MazeHunter.Core.Spawning;
+using MazeHunter.Core.State;
 using MazeHunter.Core.Timing;
 using MazeHunter.Game.Audio;
 using MazeHunter.Game.Input;
@@ -32,6 +33,7 @@ internal sealed class GameForm : Form
     private readonly RoundDirector _rounds = new();
     private readonly PlayerLife _playerLife = new();
     private readonly ScoreSystem _score = new();
+    private readonly GameFlow _flow = new();
     private readonly AudioSystem _audio = new();
     private long _previousTicks;
     private double _presentationTime;
@@ -132,24 +134,14 @@ internal sealed class GameForm : Form
     private void UpdateSimulation(float deltaSeconds)
     {
         _presentationTime += deltaSeconds;
-        _score.Update(deltaSeconds);
-
-        if (_playerLife.IsGameOver)
+        ProcessSystemInput();
+        if (!_flow.SimulationRunning)
         {
-            if (_keyboard.WasPressed(Keys.Enter))
-            {
-                ResetGame();
-            }
-
             _keyboard.EndUpdate();
             return;
         }
 
-        if (_keyboard.WasPressed(Keys.M))
-        {
-            _audio.ToggleMute();
-        }
-
+        _score.Update(deltaSeconds);
         if (_playerLife.Update(deltaSeconds))
         {
             _runner.Respawn(SpawnPlanner.FindSafestPlayerSpawn(_maze, _enemies));
@@ -195,6 +187,7 @@ internal sealed class GameForm : Form
             if (_playerLife.IsGameOver)
             {
                 _enemies.Clear();
+                _flow.EndGame();
             }
         }
 
@@ -212,6 +205,18 @@ internal sealed class GameForm : Form
         using var glowBrush = new SolidBrush(Color.FromArgb(255, 55 + pulse, 218, 190));
         using var titleFont = new Font(FontFamily.GenericMonospace, 13, FontStyle.Bold, GraphicsUnit.Pixel);
         using var textFont = new Font(FontFamily.GenericMonospace, 9, FontStyle.Bold, GraphicsUnit.Pixel);
+
+        if (_flow.Screen == GameScreen.Title)
+        {
+            RenderTitle(graphics, glowBrush, textFont);
+            return;
+        }
+
+        if (_flow.Screen == GameScreen.Instructions)
+        {
+            RenderInstructions(graphics, glowBrush, textFont);
+            return;
+        }
 
         var header = _rounds.IsCompleting
             ? $"CYCLE {_rounds.RoundNumber} CLEARED"
@@ -231,10 +236,70 @@ internal sealed class GameForm : Form
         var footer = _audio.Muted ? "SPACE FIRE // M AUDIO ON" : "SPACE FIRE // M MUTE";
         DrawCentered(graphics, footer, textFont, dimBrush, 232);
 
-        if (_playerLife.IsGameOver)
+        if (_flow.Screen == GameScreen.Paused)
+        {
+            RenderPaused(graphics);
+        }
+        else if (_flow.Screen == GameScreen.GameOver)
         {
             RenderGameOver(graphics);
         }
+    }
+
+    private void RenderTitle(Graphics graphics, Brush glowBrush, Font textFont)
+    {
+        using var largeFont = new Font(FontFamily.GenericMonospace, 28, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var subtitleBrush = new SolidBrush(Color.FromArgb(255, 255, 82, 164));
+        using var textBrush = new SolidBrush(Color.FromArgb(255, 180, 200, 224));
+        using var dimBrush = new SolidBrush(Color.FromArgb(255, 90, 112, 145));
+        using var gridPen = new Pen(Color.FromArgb(255, 16, 49, 68));
+
+        for (var x = 24; x < LogicalWidth; x += 24)
+        {
+            graphics.DrawLine(gridPen, x, 38, x, 204);
+        }
+
+        for (var y = 48; y < 204; y += 24)
+        {
+            graphics.DrawLine(gridPen, 16, y, LogicalWidth - 16, y);
+        }
+
+        DrawCentered(graphics, "NEON", largeFont, glowBrush, 50);
+        DrawCentered(graphics, "LABYRINTH", largeFont, subtitleBrush, 80);
+        DrawCentered(graphics, "A SIGNAL-RUNNER ARCADE", textFont, textBrush, 122);
+        DrawCentered(graphics, "ENTER  SOLO LINK", textFont, glowBrush, 158);
+        DrawCentered(graphics, "I      HOW TO PLAY", textFont, textBrush, 176);
+        DrawCentered(graphics, "M      TOGGLE AUDIO", textFont, textBrush, 190);
+        DrawCentered(graphics, "ORIGINAL CODE // ART // AUDIO", textFont, dimBrush, 222);
+    }
+
+    private static void RenderInstructions(Graphics graphics, Brush glowBrush, Font textFont)
+    {
+        using var headingFont = new Font(FontFamily.GenericMonospace, 18, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var accentBrush = new SolidBrush(Color.FromArgb(255, 255, 82, 164));
+        using var textBrush = new SolidBrush(Color.FromArgb(255, 190, 210, 232));
+        DrawCentered(graphics, "SIGNAL PROTOCOL", headingFont, glowBrush, 20);
+        DrawCentered(graphics, "W A S D     MOVE", textFont, textBrush, 64);
+        DrawCentered(graphics, "SPACE       FIRE PULSE", textFont, textBrush, 82);
+        DrawCentered(graphics, "P / ESC     PAUSE", textFont, textBrush, 100);
+        DrawCentered(graphics, "M           MUTE", textFont, textBrush, 118);
+        DrawCentered(graphics, "CLEAR EVERY HOSTILE SIGNAL", textFont, accentBrush, 148);
+        DrawCentered(graphics, "CHAIN HITS FOR UP TO 4x SCORE", textFont, textBrush, 164);
+        DrawCentered(graphics, "THREE LINKS // SURVIVE THE GRID", textFont, textBrush, 180);
+        DrawCentered(graphics, "ENTER OR ESC TO RETURN", textFont, glowBrush, 214);
+    }
+
+    private void RenderPaused(Graphics graphics)
+    {
+        using var overlayBrush = new SolidBrush(Color.FromArgb(210, 5, 7, 15));
+        graphics.FillRectangle(overlayBrush, 48, 84, 224, 74);
+        using var titleFont = new Font(FontFamily.GenericMonospace, 20, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var textFont = new Font(FontFamily.GenericMonospace, 9, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var titleBrush = new SolidBrush(Color.FromArgb(255, 55, 238, 210));
+        using var textBrush = new SolidBrush(Color.White);
+        DrawCentered(graphics, "LINK SUSPENDED", titleFont, titleBrush, 94);
+        DrawCentered(graphics, "P / ESC RESUME   R RESTART", textFont, textBrush, 128);
+        DrawCentered(graphics, "Q RETURN TO TITLE", textFont, textBrush, 144);
     }
 
     private void RenderEnemies(Graphics graphics)
@@ -407,6 +472,72 @@ internal sealed class GameForm : Form
                 newest = order;
                 direction = candidate;
             }
+        }
+    }
+
+    private void ProcessSystemInput()
+    {
+        if (_keyboard.WasPressed(Keys.M))
+        {
+            _audio.ToggleMute();
+        }
+
+        switch (_flow.Screen)
+        {
+            case GameScreen.Title:
+                if (_keyboard.WasPressed(Keys.Enter))
+                {
+                    ResetGame();
+                    _flow.StartGame();
+                }
+                else if (_keyboard.WasPressed(Keys.I))
+                {
+                    _flow.ShowInstructions();
+                }
+
+                break;
+            case GameScreen.Instructions:
+                if (_keyboard.WasPressed(Keys.Enter) || _keyboard.WasPressed(Keys.Escape))
+                {
+                    _flow.ReturnToTitle();
+                }
+
+                break;
+            case GameScreen.Playing:
+                if (_keyboard.WasPressed(Keys.P) || _keyboard.WasPressed(Keys.Escape))
+                {
+                    _flow.TogglePause();
+                }
+
+                break;
+            case GameScreen.Paused:
+                if (_keyboard.WasPressed(Keys.P) || _keyboard.WasPressed(Keys.Escape))
+                {
+                    _flow.TogglePause();
+                }
+                else if (_keyboard.WasPressed(Keys.R))
+                {
+                    ResetGame();
+                    _flow.TogglePause();
+                }
+                else if (_keyboard.WasPressed(Keys.Q))
+                {
+                    _flow.ReturnToTitle();
+                }
+
+                break;
+            case GameScreen.GameOver:
+                if (_keyboard.WasPressed(Keys.Enter))
+                {
+                    ResetGame();
+                    _flow.StartGame();
+                }
+                else if (_keyboard.WasPressed(Keys.Escape))
+                {
+                    _flow.ReturnToTitle();
+                }
+
+                break;
         }
     }
 

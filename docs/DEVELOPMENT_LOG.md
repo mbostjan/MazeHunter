@@ -77,3 +77,13 @@ No defects remain open for Milestone 1.
   Enter restart.
 - Added scoring, life transition, protection, contact, reset, and safe-respawn
   tests.
+
+## 2026-07-19 — Milestone 8
+
+- Added an explicit title, instructions, playing, paused, and game-over state
+  machine; simulation advances only in the playing state.
+- Added original animated title presentation, complete solo instructions,
+  pause overlay, resume, in-run restart, return-to-title, and game-over restart.
+- Consolidated solo HUD messaging for cycles, remaining signals, score, chain,
+  lives, respawn state, and audio status.
+- Added transition and simulation-gating tests.

@@ -43,6 +43,9 @@ can be verified without opening a window.
 - **Lives/respawn:** `PlayerLife` owns damage eligibility, three lives,
   1.25-second absence, two-second protection, and game over. The spawn planner
   maximizes squared distance from every active enemy before return.
+- **Flow state:** `GameFlow` is the authoritative title/instructions/playing/
+  paused/game-over state machine. Only `Playing` permits simulation advancement;
+  presentation and input adapters cannot invent transitions.
 - **Future Core systems:** state machine, input commands,
   projectiles, enemy strategies/pathfinding, spawning, rounds, score, settings,
   persistence, and diagnostic snapshots.

@@ -40,4 +40,7 @@ Current controls are WASD to move, Space to fire, and M to mute. Planned
 Player 2 defaults are arrow keys plus Enter/Right Control; P/Escape will pause,
 F3 will toggle diagnostics, and Alt+Enter will toggle display mode.
 
+From the title screen, Enter starts a solo run and I opens instructions. During
+play P or Escape pauses. From pause, R restarts and Q returns to the title.
+
 See [GAME_DESIGN.md](docs/GAME_DESIGN.md) and [ROADMAP.md](docs/ROADMAP.md).
