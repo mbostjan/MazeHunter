@@ -77,4 +77,17 @@ public sealed class GameFlowTests
 
         Assert.AreEqual(GameMode.Cooperative, flow.Mode);
     }
+
+    [TestMethod]
+    public void SelectMode_ChangesPreferenceOnlyAtTitle()
+    {
+        var flow = new GameFlow();
+        flow.SelectMode(GameMode.Cooperative);
+        Assert.AreEqual(GameMode.Cooperative, flow.Mode);
+
+        flow.StartGame();
+        flow.SelectMode(GameMode.Solo);
+
+        Assert.AreEqual(GameMode.Cooperative, flow.Mode);
+    }
 }

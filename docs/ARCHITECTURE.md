@@ -75,6 +75,9 @@ on an ordinary desktop, with steady-state gameplay allocations near zero.
 
 ## Persistence
 
-Versioned JSON will be stored under
-`%LOCALAPPDATA%\NeonLabyrinth\profile.json`. Writes will use a temporary file
-and replacement; malformed data will be quarantined and defaults restored.
+Versioned JSON is stored under
+`%LOCALAPPDATA%\NeonLabyrinth\profile.json`. `PlayerProfile` owns schema
+normalization, callsign sanitation, top-10 ordering, and forward-version
+rejection. Writes use a same-directory temporary file and replacement;
+malformed data is renamed with a `profile.corrupt-*` timestamp and defaults are
+restored. Storage errors fall back safely and are reported to diagnostics.

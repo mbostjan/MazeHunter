@@ -24,3 +24,5 @@
   solo HUD, pause/resume, in-run restart, and return-to-title controls.
 - Complete local co-op with independent runners, controls, scores, lives,
   owner-colored shots, survivor rules, cycle recovery, and no friendly fire.
+- Versioned per-user profile, callsign entry, top-ten leaderboard, last mode and
+  mute persistence, atomic replacement, and corruption recovery.

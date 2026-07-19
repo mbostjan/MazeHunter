@@ -18,6 +18,8 @@ internal sealed class AudioSystem : IDisposable
 
     public void ToggleMute() => Muted = !Muted;
 
+    public void SetMuted(bool muted) => Muted = muted;
+
     public void PlayFire()
     {
         if (!Muted)
@@ -32,4 +34,3 @@ internal sealed class AudioSystem : IDisposable
         _fireStream.Dispose();
     }
 }
-

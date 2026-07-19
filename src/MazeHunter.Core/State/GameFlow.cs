@@ -17,6 +17,14 @@ public sealed class GameFlow
         }
     }
 
+    public void SelectMode(GameMode mode)
+    {
+        if (Screen == GameScreen.Title)
+        {
+            Mode = mode;
+        }
+    }
+
     public void StartGame(GameMode? mode = null)
     {
         if (Screen is GameScreen.Title or GameScreen.GameOver)

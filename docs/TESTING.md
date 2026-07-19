@@ -27,6 +27,12 @@ Co-op tests cover mode selection, nearest-runner hunting, independent projectile
 ownership through existing owner-hit tests, friendly-fire policy, continuation
 with one survivor, both-player game over, recovery life, and team bonuses.
 
+Persistence tests cover JSON round trips, settings and timestamp preservation,
+malformed JSON, unsupported future versions, older-version normalization,
+callsign sanitation, leaderboard qualification, sorting, and top-ten trimming.
+File smoke tests may set `NEON_LABYRINTH_DATA_DIR` to isolate profile writes
+from the normal per-user directory.
+
 ## Milestone 1 manual smoke procedure
 
 1. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1`.

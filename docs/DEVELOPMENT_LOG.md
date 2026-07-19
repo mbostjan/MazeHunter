@@ -99,3 +99,14 @@ No defects remain open for Milestone 1.
   bonuses, and one protected recovery life at the next cleared cycle.
 - Added mode, nearest-target, recovery, team bonus, friendly-fire, and survivor
   rule tests.
+
+## 2026-07-19 — Milestone 10
+
+- Added versioned JSON profile schema for mute state, last mode, both callsigns,
+  and top-ten high scores with mode, cycle, and UTC timestamp.
+- Added uppercase alphanumeric 1-8 character callsign entry for qualifying solo
+  and co-op scores, plus a title-screen top-three display.
+- Added `%LOCALAPPDATA%\NeonLabyrinth` storage, temp-file replacement,
+  malformed-file quarantine, safe defaults, and close-time persistence.
+- Added round-trip, corruption, future/older version, normalization, callsign,
+  qualification, ordering, and trimming tests.

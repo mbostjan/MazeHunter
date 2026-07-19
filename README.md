@@ -46,4 +46,8 @@ Press 2 on the title screen for local dual-link co-op. Player 2 moves with the
 arrow keys and fires with Enter or Right Control. Players score independently,
 cannot harm each other, and keep the run alive while either has remaining lives.
 
+Qualifying game-over scores prompt for a 1-8 character callsign. The top ten,
+mute state, callsigns, and last-selected mode persist in versioned JSON at
+`%LOCALAPPDATA%\NeonLabyrinth\profile.json`; the title shows the top three.
+
 See [GAME_DESIGN.md](docs/GAME_DESIGN.md) and [ROADMAP.md](docs/ROADMAP.md).

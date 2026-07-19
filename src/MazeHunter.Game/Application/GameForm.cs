@@ -6,6 +6,7 @@ using MazeHunter.Core.Actors;
 using MazeHunter.Core.Combat;
 using MazeHunter.Core.Enemies;
 using MazeHunter.Core.Mazes;
+using MazeHunter.Core.Persistence;
 using MazeHunter.Core.Players;
 using MazeHunter.Core.Rounds;
 using MazeHunter.Core.Scoring;
@@ -14,6 +15,7 @@ using MazeHunter.Core.State;
 using MazeHunter.Core.Timing;
 using MazeHunter.Game.Audio;
 using MazeHunter.Game.Input;
+using MazeHunter.Game.Persistence;
 
 namespace MazeHunter.Game.Application;
 
@@ -39,6 +41,11 @@ internal sealed class GameForm : Form
     private readonly ScoreSystem _scoreTwo = new();
     private readonly GameFlow _flow = new();
     private readonly AudioSystem _audio = new();
+    private readonly ProfileStore _profileStore = new();
+    private readonly PlayerProfile _profile;
+    private readonly List<PendingScore> _pendingScores = [];
+    private int _pendingScoreIndex;
+    private string _callsignBuffer = string.Empty;
     private long _previousTicks;
     private double _presentationTime;
 
@@ -47,6 +54,9 @@ internal sealed class GameForm : Form
         var spawns = SpawnPlanner.FindPlayerSpawns(_maze);
         _runner = new Runner(spawns.PlayerOne);
         _runnerTwo = new Runner(spawns.PlayerTwo);
+        _profile = _profileStore.Load();
+        _flow.SelectMode(_profile.Settings.LastMode);
+        _audio.SetMuted(_profile.Settings.Muted);
         Text = "Neon Labyrinth";
         ClientSize = new Size(960, 720);
         MinimumSize = new Size(640, 520);
@@ -72,6 +82,7 @@ internal sealed class GameForm : Form
             _clock.Reset();
             _keyboard.Clear();
         };
+        FormClosing += (_, _) => SaveProfileSafely();
     }
 
     protected override void Dispose(bool disposing)
@@ -105,6 +116,12 @@ internal sealed class GameForm : Form
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
+        if (_flow.Screen == GameScreen.GameOver && IsEnteringCallsign)
+        {
+            HandleCallsignKey(e);
+            return;
+        }
+
         _keyboard.Press(e.KeyCode);
         e.Handled = true;
         base.OnKeyDown(e);
@@ -258,6 +275,7 @@ internal sealed class GameForm : Form
             _enemies.Clear();
             _projectiles.Clear();
             _flow.EndGame();
+            BeginHighScoreEntry();
         }
 
         _keyboard.EndUpdate();
@@ -355,11 +373,26 @@ internal sealed class GameForm : Form
 
         DrawCentered(graphics, "NEON", largeFont, glowBrush, 50);
         DrawCentered(graphics, "LABYRINTH", largeFont, subtitleBrush, 80);
-        DrawCentered(graphics, "A SIGNAL-RUNNER ARCADE", textFont, textBrush, 122);
-        DrawCentered(graphics, "1 / ENTER  SOLO LINK", textFont, glowBrush, 154);
-        DrawCentered(graphics, "2          DUAL LINK", textFont, subtitleBrush, 170);
-        DrawCentered(graphics, "I HOW TO PLAY   M AUDIO", textFont, textBrush, 188);
-        DrawCentered(graphics, "ORIGINAL CODE // ART // AUDIO", textFont, dimBrush, 222);
+        DrawCentered(graphics, "A SIGNAL-RUNNER ARCADE", textFont, textBrush, 116);
+        DrawCentered(
+            graphics,
+            $"ENTER LAST: {(_flow.Mode == GameMode.Solo ? "SOLO" : "DUAL")}",
+            textFont,
+            glowBrush,
+            142);
+        DrawCentered(graphics, "1 SOLO   2 DUAL   I GUIDE", textFont, subtitleBrush, 158);
+        DrawCentered(graphics, "M AUDIO", textFont, textBrush, 174);
+        DrawCentered(graphics, "TOP SIGNALS", textFont, dimBrush, 194);
+        for (var i = 0; i < Math.Min(3, _profile.HighScores.Count); i++)
+        {
+            var entry = _profile.HighScores[i];
+            DrawCentered(
+                graphics,
+                $"{i + 1} {entry.Callsign,-8} {entry.Score:000000} C{entry.Round:00}",
+                textFont,
+                textBrush,
+                205 + (i * 10));
+        }
     }
 
     private static void RenderInstructions(Graphics graphics, Brush glowBrush, Font textFont)
@@ -518,8 +551,22 @@ internal sealed class GameForm : Form
         var finalScore = IsCooperative
             ? $"P1 {_score.Score:000000}  P2 {_scoreTwo.Score:000000}"
             : $"FINAL SCORE {_score.Score:000000}";
-        DrawCentered(graphics, finalScore, textFont, textBrush, 126);
-        DrawCentered(graphics, "ENTER TO RECONNECT", textFont, textBrush, 145);
+        DrawCentered(graphics, finalScore, textFont, textBrush, 122);
+        if (IsEnteringCallsign)
+        {
+            var pending = _pendingScores[_pendingScoreIndex];
+            DrawCentered(
+                graphics,
+                $"P{pending.PlayerId} CALLSIGN: {_callsignBuffer}_",
+                textFont,
+                textBrush,
+                140);
+            DrawCentered(graphics, "TYPE 1-8 KEYS // ENTER SAVE", textFont, textBrush, 152);
+        }
+        else
+        {
+            DrawCentered(graphics, "ENTER TO RECONNECT", textFont, textBrush, 145);
+        }
     }
 
     private void RenderMaze(Graphics graphics)
@@ -582,20 +629,24 @@ internal sealed class GameForm : Form
         if (_keyboard.WasPressed(Keys.M))
         {
             _audio.ToggleMute();
+            _profile.Settings.Muted = _audio.Muted;
         }
 
         switch (_flow.Screen)
         {
             case GameScreen.Title:
-                if (_keyboard.WasPressed(Keys.Enter) || _keyboard.WasPressed(Keys.D1))
+                if (_keyboard.WasPressed(Keys.Enter))
                 {
                     ResetGame();
-                    _flow.StartGame(GameMode.Solo);
+                    _flow.StartGame();
+                }
+                else if (_keyboard.WasPressed(Keys.D1))
+                {
+                    SelectAndStartMode(GameMode.Solo);
                 }
                 else if (_keyboard.WasPressed(Keys.D2))
                 {
-                    ResetGame();
-                    _flow.StartGame(GameMode.Cooperative);
+                    SelectAndStartMode(GameMode.Cooperative);
                 }
                 else if (_keyboard.WasPressed(Keys.I))
                 {
@@ -650,6 +701,9 @@ internal sealed class GameForm : Form
 
     private void ResetGame()
     {
+        _pendingScores.Clear();
+        _pendingScoreIndex = 0;
+        _callsignBuffer = string.Empty;
         _enemies.Clear();
         _projectiles.Clear();
         _rounds.Reset();
@@ -670,6 +724,133 @@ internal sealed class GameForm : Form
         {
             _audio.PlayFire();
         }
+    }
+
+    private void SelectAndStartMode(GameMode mode)
+    {
+        _flow.SelectMode(mode);
+        _profile.Settings.LastMode = mode;
+        ResetGame();
+        _flow.StartGame();
+    }
+
+    private void BeginHighScoreEntry()
+    {
+        _pendingScores.Clear();
+        _pendingScoreIndex = 0;
+        if (_profile.QualifiesForHighScore(_score.Score))
+        {
+            _pendingScores.Add(new PendingScore(1, _score.Score, _rounds.RoundNumber));
+        }
+
+        if (IsCooperative && _profile.QualifiesForHighScore(_scoreTwo.Score))
+        {
+            _pendingScores.Add(new PendingScore(2, _scoreTwo.Score, _rounds.RoundNumber));
+        }
+
+        LoadPendingCallsign();
+    }
+
+    private void LoadPendingCallsign()
+    {
+        if (!IsEnteringCallsign)
+        {
+            _callsignBuffer = string.Empty;
+            return;
+        }
+
+        _callsignBuffer = _pendingScores[_pendingScoreIndex].PlayerId == 1
+            ? _profile.Settings.PlayerOneCallsign
+            : _profile.Settings.PlayerTwoCallsign;
+    }
+
+    private void HandleCallsignKey(KeyEventArgs e)
+    {
+        e.Handled = true;
+        e.SuppressKeyPress = true;
+        if (e.KeyCode == Keys.Back)
+        {
+            if (_callsignBuffer.Length > 0)
+            {
+                _callsignBuffer = _callsignBuffer[..^1];
+            }
+
+            return;
+        }
+
+        if (e.KeyCode is Keys.Enter or Keys.Escape)
+        {
+            CompletePendingScore();
+            return;
+        }
+
+        var character = GetCallsignCharacter(e.KeyCode);
+        if (character != '\0' && _callsignBuffer.Length < 8)
+        {
+            _callsignBuffer += character;
+        }
+    }
+
+    private void CompletePendingScore()
+    {
+        var pending = _pendingScores[_pendingScoreIndex];
+        var callsign = PlayerProfile.SanitizeCallsign(_callsignBuffer);
+        _profile.AddHighScore(
+            callsign,
+            pending.Score,
+            pending.Round,
+            _flow.Mode,
+            DateTimeOffset.UtcNow);
+        if (pending.PlayerId == 1)
+        {
+            _profile.Settings.PlayerOneCallsign = callsign;
+        }
+        else
+        {
+            _profile.Settings.PlayerTwoCallsign = callsign;
+        }
+
+        _pendingScoreIndex++;
+        LoadPendingCallsign();
+        SaveProfileSafely();
+    }
+
+    private void SaveProfileSafely()
+    {
+        try
+        {
+            _profile.Settings.Muted = _audio.Muted;
+            _profile.Settings.LastMode = _flow.Mode;
+            _profileStore.Save(_profile);
+        }
+        catch (IOException exception)
+        {
+            Debug.WriteLine($"Profile save failed: {exception}");
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            Debug.WriteLine($"Profile save access failed: {exception}");
+        }
+    }
+
+    private static char GetCallsignCharacter(Keys key)
+    {
+        if (key is >= Keys.A and <= Keys.Z)
+        {
+            return (char)('A' + ((int)key - (int)Keys.A));
+        }
+
+        if (key is >= Keys.D0 and <= Keys.D9)
+        {
+            return (char)('0' + ((int)key - (int)Keys.D0));
+        }
+
+        if (key is >= Keys.NumPad0 and <= Keys.NumPad9)
+        {
+            return (char)('0' + ((int)key - (int)Keys.NumPad0));
+        }
+
+        return '\0';
     }
 
     private void RecoverEliminatedPartner()
@@ -708,6 +889,10 @@ internal sealed class GameForm : Form
     }
 
     private bool IsCooperative => _flow.Mode == GameMode.Cooperative;
+
+    private bool IsEnteringCallsign => _pendingScoreIndex < _pendingScores.Count;
+
+    private readonly record struct PendingScore(int PlayerId, int Score, int Round);
 
     private static void DrawCentered(Graphics graphics, string text, Font font, Brush brush, float y)
     {
