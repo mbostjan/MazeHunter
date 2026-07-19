@@ -66,3 +66,14 @@ No defects remain open for Milestone 1.
   composition, active caps, spawn intervals, and 48-pixel entry safety.
 - Added cycle quotas, 1.5-second completion interlude, and automatic escalation.
 - Added behavior-specific and round spawn/progression tests.
+
+## 2026-07-19 — Milestone 7
+
+- Added per-profile points, 2.5-second elimination chains, capped 4× multiplier,
+  cycle bonuses, and immediate chain loss on damage.
+- Added three lives, contact damage, 1.25-second respawn delay, safest-tile
+  selection, two seconds of blinking protection, and terminal game over.
+- Added live score/chain/lives HUD, respawn countdown, game-over overlay, and
+  Enter restart.
+- Added scoring, life transition, protection, contact, reset, and safe-respawn
+  tests.

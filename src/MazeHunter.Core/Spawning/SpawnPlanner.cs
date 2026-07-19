@@ -1,5 +1,6 @@
 using System.Numerics;
 using MazeHunter.Core.Geometry;
+using MazeHunter.Core.Enemies;
 using MazeHunter.Core.Mazes;
 
 namespace MazeHunter.Core.Spawning;
@@ -23,6 +24,43 @@ public static class SpawnPlanner
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(tileSize);
         var tile = FindClosestWalkable(maze, new GridPoint(maze.Width / 2, 1));
         return ToCenter(tile, tileSize);
+    }
+
+    public static Vector2 FindSafestPlayerSpawn(Maze maze, EnemySystem enemies, int tileSize = 8)
+    {
+        ArgumentNullException.ThrowIfNull(maze);
+        ArgumentNullException.ThrowIfNull(enemies);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(tileSize);
+
+        var bestTile = default(GridPoint);
+        var bestSafety = float.NegativeInfinity;
+        foreach (var tile in maze.WalkableTiles())
+        {
+            var center = ToCenter(tile, tileSize);
+            var closestEnemyDistance = float.PositiveInfinity;
+            for (var i = 0; i < enemies.Capacity; i++)
+            {
+                if (enemies[i].Active)
+                {
+                    closestEnemyDistance = MathF.Min(
+                        closestEnemyDistance,
+                        Vector2.DistanceSquared(center, enemies[i].Position));
+                }
+            }
+
+            if (closestEnemyDistance > bestSafety)
+            {
+                bestTile = tile;
+                bestSafety = closestEnemyDistance;
+            }
+        }
+
+        if (float.IsNegativeInfinity(bestSafety))
+        {
+            throw new InvalidOperationException("Maze has no valid player spawn.");
+        }
+
+        return ToCenter(bestTile, tileSize);
     }
 
     private static GridPoint FindClosestWalkable(Maze maze, GridPoint target, GridPoint? excluded = null)

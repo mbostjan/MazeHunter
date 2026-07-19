@@ -152,6 +152,23 @@ public sealed class EnemySystem
         ActiveCount = 0;
     }
 
+    public bool HasContact(Vector2 center, float radius)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(radius);
+        var contactDistance = radius + CollisionRadius;
+        var contactDistanceSquared = contactDistance * contactDistance;
+        for (var i = 0; i < _enemies.Length; i++)
+        {
+            if (_enemies[i].Active &&
+                Vector2.DistanceSquared(_enemies[i].Position, center) <= contactDistanceSquared)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private Direction ChooseDrifterDirection(Maze maze, GridPoint tile, Direction current)
     {
         Span<Direction> choices = stackalloc Direction[4];

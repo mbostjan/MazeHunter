@@ -92,5 +92,14 @@ public sealed class EnemySystemTests
         Assert.IsFalse(enemies.TrySpawnDrifter(new Vector2(20, 12)));
         Assert.AreEqual(1, enemies.ActiveCount);
     }
-}
 
+    [TestMethod]
+    public void HasContact_DetectsTouchingButNotDistantEnemy()
+    {
+        var enemies = new EnemySystem(seed: 1);
+        enemies.TrySpawnDrifter(new Vector2(20, 12));
+
+        Assert.IsTrue(enemies.HasContact(new Vector2(14, 12), 3));
+        Assert.IsFalse(enemies.HasContact(new Vector2(40, 12), 3));
+    }
+}

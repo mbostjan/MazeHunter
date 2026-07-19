@@ -12,8 +12,8 @@ and receive a focused Git commit.
 | 4 | Directional pulses, walls/hits/lifetime, fire limits, nonblocking original SFX. | Complete |
 | 5 | Enemy entity framework and fair Drifter behavior. | Complete |
 | 6 | Tracer, Vector, Veil, Surge, Prism; spawn director and cycle progression. | Complete |
-| 7 | Score, chains, lives, damage, protected respawn, game over. | Next |
-| 8 | Title/mode menus, instructions, HUD, pause/restart, complete solo flow. | Planned |
+| 7 | Score, chains, lives, damage, protected respawn, game over. | Complete |
+| 8 | Title/mode menus, instructions, HUD, pause/restart, complete solo flow. | Next |
 | 9 | Complete local co-op, independent controls/scores/lives, survivor rules. | Planned |
 | 10 | Versioned JSON high scores/settings/mode with corruption recovery. | Planned |
 | 11 | Original pixel presentation, effects, complete generated audio, polish. | Planned |

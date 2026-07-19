@@ -5,7 +5,9 @@ using MazeHunter.Core.Actors;
 using MazeHunter.Core.Combat;
 using MazeHunter.Core.Enemies;
 using MazeHunter.Core.Mazes;
+using MazeHunter.Core.Players;
 using MazeHunter.Core.Rounds;
+using MazeHunter.Core.Scoring;
 using MazeHunter.Core.Spawning;
 using MazeHunter.Core.Timing;
 using MazeHunter.Game.Audio;
@@ -28,6 +30,8 @@ internal sealed class GameForm : Form
     private readonly ProjectileSystem _projectiles = new();
     private readonly EnemySystem _enemies = new(seed: 0x4E454F4E);
     private readonly RoundDirector _rounds = new();
+    private readonly PlayerLife _playerLife = new();
+    private readonly ScoreSystem _score = new();
     private readonly AudioSystem _audio = new();
     private long _previousTicks;
     private double _presentationTime;
@@ -128,14 +132,17 @@ internal sealed class GameForm : Form
     private void UpdateSimulation(float deltaSeconds)
     {
         _presentationTime += deltaSeconds;
-        _runner.Update(_maze, GetRequestedDirection(), deltaSeconds);
-        if (_keyboard.WasPressed(Keys.Space))
+        _score.Update(deltaSeconds);
+
+        if (_playerLife.IsGameOver)
         {
-            var origin = _runner.Position + (_runner.Facing.ToVector() * 5f);
-            if (_projectiles.TryFire(1, origin, _runner.Facing))
+            if (_keyboard.WasPressed(Keys.Enter))
             {
-                _audio.PlayFire();
+                ResetGame();
             }
+
+            _keyboard.EndUpdate();
+            return;
         }
 
         if (_keyboard.WasPressed(Keys.M))
@@ -143,16 +150,54 @@ internal sealed class GameForm : Form
             _audio.ToggleMute();
         }
 
+        if (_playerLife.Update(deltaSeconds))
+        {
+            _runner.Respawn(SpawnPlanner.FindSafestPlayerSpawn(_maze, _enemies));
+            _playerLife.CompleteRespawn();
+        }
+
+        if (_playerLife.IsAlive)
+        {
+            _runner.Update(_maze, GetRequestedDirection(), deltaSeconds);
+            if (_keyboard.WasPressed(Keys.Space))
+            {
+                var origin = _runner.Position + (_runner.Facing.ToVector() * 5f);
+                if (_projectiles.TryFire(1, origin, _runner.Facing))
+                {
+                    _audio.PlayFire();
+                }
+            }
+        }
+
         _projectiles.Update(_maze, deltaSeconds);
         _rounds.Update(_maze, _enemies, _runner.Position, deltaSeconds);
+        if (_rounds.RoundAdvancedThisUpdate)
+        {
+            _score.RecordRoundCompleted(_rounds.RoundNumber - 1, _playerLife.Lives);
+        }
+
         _enemies.Update(
             _maze,
             deltaSeconds,
             new EnemyContext(_runner.Position, _runner.Facing, _projectiles));
-        while (_enemies.TryDestroyWithProjectiles(_projectiles, out _, out _))
+        while (_enemies.TryDestroyWithProjectiles(_projectiles, out _, out var destroyedKind))
         {
             _rounds.NotifyEnemyDefeated();
+            _score.RecordEnemyDestroyed(destroyedKind);
         }
+
+        if (_playerLife.IsAlive &&
+            _enemies.HasContact(_runner.Position, Runner.CollisionRadius) &&
+            _playerLife.TryDamage())
+        {
+            _score.ResetChain();
+            _projectiles.Clear();
+            if (_playerLife.IsGameOver)
+            {
+                _enemies.Clear();
+            }
+        }
+
         _keyboard.EndUpdate();
     }
 
@@ -178,11 +223,18 @@ internal sealed class GameForm : Form
         RenderRunner(graphics);
 
         using var accentBrush = new SolidBrush(Color.FromArgb(255, 240, 85, 150));
-        var inputSignal = GetInputSignal();
-        DrawCentered(graphics, inputSignal, textFont, accentBrush, 222);
+        var status = _playerLife.IsAlive
+            ? $"SCORE {_score.Score:000000}  CHAIN x{_score.Multiplier}  LIVES {_playerLife.Lives}"
+            : $"SIGNAL LOST // RETURN IN {_playerLife.RespawnSecondsRemaining:0.0}";
+        DrawCentered(graphics, status, textFont, accentBrush, 222);
         using var dimBrush = new SolidBrush(Color.FromArgb(255, 150, 164, 190));
         var footer = _audio.Muted ? "SPACE FIRE // M AUDIO ON" : "SPACE FIRE // M MUTE";
         DrawCentered(graphics, footer, textFont, dimBrush, 232);
+
+        if (_playerLife.IsGameOver)
+        {
+            RenderGameOver(graphics);
+        }
     }
 
     private void RenderEnemies(Graphics graphics)
@@ -262,6 +314,12 @@ internal sealed class GameForm : Form
 
     private void RenderRunner(Graphics graphics)
     {
+        if (!_playerLife.IsAlive ||
+            (_playerLife.IsProtected && ((int)(_presentationTime * 10) & 1) == 0))
+        {
+            return;
+        }
+
         const int tileSize = Runner.TileSize;
         var offsetX = (LogicalWidth - (_maze.Width * tileSize)) / 2;
         const int offsetY = 32;
@@ -286,6 +344,21 @@ internal sealed class GameForm : Form
             using var coreBrush = new SolidBrush(Color.White);
             graphics.FillRectangle(coreBrush, x - 1, y - 1, 2, 2);
         }
+    }
+
+    private void RenderGameOver(Graphics graphics)
+    {
+        using var overlayBrush = new SolidBrush(Color.FromArgb(220, 5, 7, 15));
+        graphics.FillRectangle(overlayBrush, 44, 78, 232, 86);
+        using var borderPen = new Pen(Color.FromArgb(255, 255, 82, 164), 2);
+        graphics.DrawRectangle(borderPen, 44, 78, 231, 85);
+        using var titleFont = new Font(FontFamily.GenericMonospace, 20, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var textFont = new Font(FontFamily.GenericMonospace, 9, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var titleBrush = new SolidBrush(Color.FromArgb(255, 255, 82, 164));
+        using var textBrush = new SolidBrush(Color.White);
+        DrawCentered(graphics, "LINK TERMINATED", titleFont, titleBrush, 94);
+        DrawCentered(graphics, $"FINAL SCORE {_score.Score:000000}", textFont, textBrush, 126);
+        DrawCentered(graphics, "ENTER TO RECONNECT", textFont, textBrush, 145);
     }
 
     private void RenderMaze(Graphics graphics)
@@ -316,16 +389,6 @@ internal sealed class GameForm : Form
         }
     }
 
-    private string GetInputSignal()
-    {
-        Span<char> signal = stackalloc char[4];
-        signal[0] = _keyboard.IsDown(Keys.W) || _keyboard.IsDown(Keys.Up) ? '^' : '-';
-        signal[1] = _keyboard.IsDown(Keys.A) || _keyboard.IsDown(Keys.Left) ? '<' : '-';
-        signal[2] = _keyboard.IsDown(Keys.S) || _keyboard.IsDown(Keys.Down) ? 'v' : '-';
-        signal[3] = _keyboard.IsDown(Keys.D) || _keyboard.IsDown(Keys.Right) ? '>' : '-';
-        return $"INPUT [{new string(signal)}]";
-    }
-
     private Direction GetRequestedDirection()
     {
         var direction = Direction.None;
@@ -345,6 +408,17 @@ internal sealed class GameForm : Form
                 direction = candidate;
             }
         }
+    }
+
+    private void ResetGame()
+    {
+        _enemies.Clear();
+        _projectiles.Clear();
+        _rounds.Reset();
+        _score.Reset();
+        _playerLife.Reset();
+        _runner.Respawn(SpawnPlanner.FindPlayerSpawns(_maze).PlayerOne);
+        _clock.Reset();
     }
 
     private static void DrawCentered(Graphics graphics, string text, Font font, Brush brush, float y)

@@ -24,6 +24,8 @@ public sealed class RoundDirector
 
     public bool IsCompleting { get; private set; }
 
+    public bool RoundAdvancedThisUpdate { get; private set; }
+
     public void Update(Maze maze, EnemySystem enemies, Vector2 playerPosition, float deltaSeconds)
     {
         ArgumentNullException.ThrowIfNull(maze);
@@ -33,6 +35,7 @@ public sealed class RoundDirector
             throw new ArgumentOutOfRangeException(nameof(deltaSeconds));
         }
 
+        RoundAdvancedThisUpdate = false;
         if (_spawned >= RequiredDefeats && enemies.ActiveCount == 0)
         {
             IsCompleting = true;
@@ -76,6 +79,17 @@ public sealed class RoundDirector
         }
     }
 
+    public void Reset()
+    {
+        RoundNumber = 1;
+        _spawned = 0;
+        _defeated = 0;
+        _spawnTimer = 0;
+        _completionTimer = 0;
+        IsCompleting = false;
+        RoundAdvancedThisUpdate = false;
+    }
+
     private static EnemyKind ChooseKind(int round, int spawnIndex)
     {
         if ((spawnIndex + 1) % 7 == 0)
@@ -96,6 +110,7 @@ public sealed class RoundDirector
 
     private void AdvanceRound()
     {
+        RoundAdvancedThisUpdate = true;
         RoundNumber++;
         _spawned = 0;
         _defeated = 0;

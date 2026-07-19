@@ -38,6 +38,11 @@ can be verified without opening a window.
   projectile lanes before path selection; Prism maximizes path distance.
 - **Rounds:** `RoundDirector` owns quotas, type composition, active caps,
   distance-gated spawn timing, completion delay, and escalating cycle state.
+- **Scoring:** profile values feed a 2.5-second chain with a capped 4×
+  multiplier; cycle and surviving-life bonuses are separate deterministic rules.
+- **Lives/respawn:** `PlayerLife` owns damage eligibility, three lives,
+  1.25-second absence, two-second protection, and game over. The spawn planner
+  maximizes squared distance from every active enemy before return.
 - **Future Core systems:** state machine, input commands,
   projectiles, enemy strategies/pathfinding, spawning, rounds, score, settings,
   persistence, and diagnostic snapshots.

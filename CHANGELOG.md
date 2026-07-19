@@ -18,3 +18,5 @@
   projectile destruction.
 - Five advanced enemy profiles plus safe spawn direction, escalating quotas,
   progressive compositions, and automatic cycle advancement.
+- Profile scoring, chain multipliers, lives, contact damage, safe protected
+  respawning, cycle bonuses, game over, and restart.

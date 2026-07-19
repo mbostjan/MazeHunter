@@ -16,6 +16,10 @@ Advanced behavior tests prove shortest-route pursuit, predictive targeting,
 projectile-lane avoidance, evasive movement, and Surge speed. Round tests cover
 safe-distance spawn gating, quotas, reset, and escalation.
 
+Survival coverage verifies three-hit game over, respawn delay, protection,
+reset, enemy contact, and farthest-valid-tile selection. Scoring coverage
+verifies profile values, multiplier growth/cap, timeout, and cycle bonuses.
+
 ## Milestone 1 manual smoke procedure
 
 1. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1`.

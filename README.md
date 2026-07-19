@@ -14,6 +14,8 @@ The first enemy, the seeded maze-wandering Drifter construct, is active and can
 be destroyed by pulse fire.
 Progressive cycles add shortest-path Tracers, predictive Vectors, lane-aware
 Veils, fast Surges, and rare evasive Prisms.
+The playable survival loop now includes profile scoring, chain multipliers,
+three lives, delayed safe respawning, spawn protection, and game over/restart.
 
 ## Requirements
 

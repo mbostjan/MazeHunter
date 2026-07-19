@@ -46,6 +46,12 @@ damage build a modest chain multiplier. Cycle completion awards speed and
 survival bonuses. Difficulty uses curated maze rotation, larger mixed waves,
 shorter spawn intervals, and new behaviors with explicit caps.
 
+Players begin with three lives. Contact removes the runner for 1.25 seconds,
+then selects the maze tile farthest from active constructs and grants two
+seconds of visibly blinking protection. The third hit ends the run. Chains
+expire after 2.5 seconds or immediately on damage and rise by one multiplier
+step every three eliminations, capped at 4×.
+
 ## Required for 1.0
 
 Complete solo and local cooperative play, six enemy profiles, curated original
