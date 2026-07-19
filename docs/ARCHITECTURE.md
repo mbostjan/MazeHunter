@@ -30,6 +30,9 @@ can be verified without opening a window.
   advances in collision-safe substeps, and provides reusable circle-hit queries.
 - **Audio:** original PCM waveforms are synthesized and preloaded at startup;
   Windows asynchronous playback never waits in the simulation loop.
+- **Effects:** a fixed-capacity presentation-only pool renders short geometric
+  bursts for eliminations, damage, and cycle completion without gameplay state.
+  Reduced-flash mode shortens and dims these effects.
 - **Enemies:** fixed-capacity entity storage uses seeded gameplay randomness.
   Drifters decide only at tile centers, prefer forward travel, reject avoidable
   reversals, and collide through the same maze queries as runners.
@@ -72,6 +75,9 @@ changes gameplay coordinates.
 
 Maintain 60 simulation updates per second and smooth presentation at 1920×1080
 on an ordinary desktop, with steady-state gameplay allocations near zero.
+
+The static maze is pre-rendered into a palette-aware bitmap and reused each
+frame. Dynamic actors, projectiles, and bounded effects render over that layer.
 
 ## Persistence
 

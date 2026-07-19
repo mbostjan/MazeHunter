@@ -110,3 +110,14 @@ No defects remain open for Milestone 1.
   malformed-file quarantine, safe defaults, and close-time persistence.
 - Added round-trip, corruption, future/older version, normalization, callsign,
   qualification, ordering, and trimming tests.
+
+## 2026-07-19 — Milestone 11
+
+- Completed original synthesized cues for firing, enemy destruction, player
+  damage, cycle completion, menu interaction, and game over.
+- Added fixed-pool geometric elimination, damage, and cycle-clear effects.
+- Added persisted F2 high-contrast and F4 reduced-flash accessibility options.
+- Cached the full static maze into a palette-aware bitmap instead of rebuilding
+  hundreds of tile rectangles on every paint.
+- Added owner-colored pulses, brighter accessible runner colors, and effect
+  position plumbing from authoritative combat results.

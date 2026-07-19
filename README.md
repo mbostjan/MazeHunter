@@ -50,4 +50,8 @@ Qualifying game-over scores prompt for a 1-8 character callsign. The top ten,
 mute state, callsigns, and last-selected mode persist in versioned JSON at
 `%LOCALAPPDATA%\NeonLabyrinth\profile.json`; the title shows the top three.
 
+Accessibility controls: F2 toggles the persisted high-contrast palette, F4
+toggles persisted reduced-flash effects, and M mutes all six original
+programmatically synthesized sound cues.
+
 See [GAME_DESIGN.md](docs/GAME_DESIGN.md) and [ROADMAP.md](docs/ROADMAP.md).

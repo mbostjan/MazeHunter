@@ -16,6 +16,7 @@ using MazeHunter.Core.Timing;
 using MazeHunter.Game.Audio;
 using MazeHunter.Game.Input;
 using MazeHunter.Game.Persistence;
+using MazeHunter.Game.Rendering;
 
 namespace MazeHunter.Game.Application;
 
@@ -25,6 +26,7 @@ internal sealed class GameForm : Form
     private const int LogicalHeight = 240;
 
     private readonly Bitmap _framebuffer = new(LogicalWidth, LogicalHeight);
+    private Bitmap _mazeLayer;
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
     private readonly FixedStepClock _clock = new();
     private readonly System.Windows.Forms.Timer _pump = new() { Interval = 16 };
@@ -44,6 +46,7 @@ internal sealed class GameForm : Form
     private readonly ProfileStore _profileStore = new();
     private readonly PlayerProfile _profile;
     private readonly List<PendingScore> _pendingScores = [];
+    private readonly VisualEffectSystem _effects = new();
     private int _pendingScoreIndex;
     private string _callsignBuffer = string.Empty;
     private long _previousTicks;
@@ -57,6 +60,7 @@ internal sealed class GameForm : Form
         _profile = _profileStore.Load();
         _flow.SelectMode(_profile.Settings.LastMode);
         _audio.SetMuted(_profile.Settings.Muted);
+        _mazeLayer = CreateMazeLayer();
         Text = "Neon Labyrinth";
         ClientSize = new Size(960, 720);
         MinimumSize = new Size(640, 520);
@@ -92,6 +96,7 @@ internal sealed class GameForm : Form
             _pump.Stop();
             _pump.Dispose();
             _framebuffer.Dispose();
+            _mazeLayer.Dispose();
             _audio.Dispose();
         }
 
@@ -165,6 +170,7 @@ internal sealed class GameForm : Form
         }
 
         _score.Update(deltaSeconds);
+        _effects.Update(deltaSeconds);
         if (IsCooperative)
         {
             _scoreTwo.Update(deltaSeconds);
@@ -216,6 +222,11 @@ internal sealed class GameForm : Form
         _rounds.Update(_maze, _enemies, primaryRunner.Position, deltaSeconds, secondTarget);
         if (_rounds.RoundAdvancedThisUpdate)
         {
+            _audio.PlayRoundComplete();
+            _effects.Spawn(
+                VisualEffectKind.RoundClear,
+                new Vector2((_maze.Width * Runner.TileSize) / 2f, (_maze.Height * Runner.TileSize) / 2f),
+                _profile.Settings.ReducedFlashes);
             _score.RecordRoundCompleted(_rounds.RoundNumber - 1, _playerLife.Lives);
             if (IsCooperative)
             {
@@ -240,8 +251,17 @@ internal sealed class GameForm : Form
                 _projectiles,
                 secondTarget,
                 _runnerTwo.Facing));
-        while (_enemies.TryDestroyWithProjectiles(_projectiles, out var ownerId, out var destroyedKind))
+        while (_enemies.TryDestroyWithProjectiles(
+                   _projectiles,
+                   out var ownerId,
+                   out var destroyedKind,
+                   out var destroyedPosition))
         {
+            _audio.PlayEnemyDestroyed();
+            _effects.Spawn(
+                VisualEffectKind.EnemyBurst,
+                destroyedPosition,
+                _profile.Settings.ReducedFlashes);
             _rounds.NotifyEnemyDefeated();
             if (ownerId == 2 && IsCooperative)
             {
@@ -257,6 +277,11 @@ internal sealed class GameForm : Form
             _enemies.HasContact(_runner.Position, Runner.CollisionRadius) &&
             _playerLife.TryDamage())
         {
+            _audio.PlayPlayerDamage();
+            _effects.Spawn(
+                VisualEffectKind.PlayerDamage,
+                _runner.Position,
+                _profile.Settings.ReducedFlashes);
             _score.ResetChain();
             _projectiles.Clear();
         }
@@ -266,6 +291,11 @@ internal sealed class GameForm : Form
             _enemies.HasContact(_runnerTwo.Position, Runner.CollisionRadius) &&
             _playerTwoLife.TryDamage())
         {
+            _audio.PlayPlayerDamage();
+            _effects.Spawn(
+                VisualEffectKind.PlayerDamage,
+                _runnerTwo.Position,
+                _profile.Settings.ReducedFlashes);
             _scoreTwo.ResetChain();
             _projectiles.Clear();
         }
@@ -275,6 +305,7 @@ internal sealed class GameForm : Form
             _enemies.Clear();
             _projectiles.Clear();
             _flow.EndGame();
+            _audio.PlayGameOver();
             BeginHighScoreEntry();
         }
 
@@ -312,10 +343,19 @@ internal sealed class GameForm : Form
         RenderMaze(graphics);
         RenderProjectiles(graphics);
         RenderEnemies(graphics);
-        RenderRunner(graphics, _runner, _playerLife, Color.FromArgb(255, 255, 206, 72));
+        RenderEffects(graphics);
+        RenderRunner(
+            graphics,
+            _runner,
+            _playerLife,
+            _profile.Settings.HighContrast ? Color.Yellow : Color.FromArgb(255, 255, 206, 72));
         if (IsCooperative)
         {
-            RenderRunner(graphics, _runnerTwo, _playerTwoLife, Color.FromArgb(255, 85, 175, 255));
+            RenderRunner(
+                graphics,
+                _runnerTwo,
+                _playerTwoLife,
+                _profile.Settings.HighContrast ? Color.Cyan : Color.FromArgb(255, 85, 175, 255));
         }
 
         using var accentBrush = new SolidBrush(Color.FromArgb(255, 240, 85, 150));
@@ -405,10 +445,10 @@ internal sealed class GameForm : Form
         DrawCentered(graphics, "SPACE       FIRE PULSE", textFont, textBrush, 82);
         DrawCentered(graphics, "ARROWS      P2 MOVE", textFont, textBrush, 100);
         DrawCentered(graphics, "ENTER/RCTRL P2 FIRE", textFont, textBrush, 118);
-        DrawCentered(graphics, "P / ESC PAUSE    M MUTE", textFont, textBrush, 136);
+        DrawCentered(graphics, "P/ESC PAUSE  M MUTE", textFont, textBrush, 136);
         DrawCentered(graphics, "CLEAR EVERY HOSTILE SIGNAL", textFont, accentBrush, 158);
         DrawCentered(graphics, "NO FRIENDLY FIRE // SCORE ALONE", textFont, textBrush, 176);
-        DrawCentered(graphics, "ONE SURVIVOR KEEPS THE LINK", textFont, textBrush, 192);
+        DrawCentered(graphics, "F2 CONTRAST  F4 REDUCED FLASH", textFont, textBrush, 192);
         DrawCentered(graphics, "ENTER OR ESC TO RETURN", textFont, glowBrush, 214);
     }
 
@@ -571,19 +611,29 @@ internal sealed class GameForm : Form
 
     private void RenderMaze(Graphics graphics)
     {
-        const int tileSize = 8;
-        var offsetX = (LogicalWidth - (_maze.Width * tileSize)) / 2;
+        var offsetX = (LogicalWidth - _mazeLayer.Width) / 2;
         const int offsetY = 32;
-        using var wallBrush = new SolidBrush(Color.FromArgb(255, 29, 75, 112));
-        using var wallCoreBrush = new SolidBrush(Color.FromArgb(255, 44, 210, 190));
-        using var floorBrush = new SolidBrush(Color.FromArgb(255, 8, 13, 27));
+        graphics.DrawImageUnscaled(_mazeLayer, offsetX, offsetY);
+    }
 
+    private Bitmap CreateMazeLayer()
+    {
+        const int tileSize = Runner.TileSize;
+        var layer = new Bitmap(_maze.Width * tileSize, _maze.Height * tileSize);
+        using var graphics = Graphics.FromImage(layer);
+        var highContrast = _profile.Settings.HighContrast;
+        using var wallBrush = new SolidBrush(
+            highContrast ? Color.FromArgb(255, 20, 80, 190) : Color.FromArgb(255, 29, 75, 112));
+        using var wallCoreBrush = new SolidBrush(
+            highContrast ? Color.White : Color.FromArgb(255, 44, 210, 190));
+        using var floorBrush = new SolidBrush(
+            highContrast ? Color.Black : Color.FromArgb(255, 8, 13, 27));
         for (var y = 0; y < _maze.Height; y++)
         {
             for (var x = 0; x < _maze.Width; x++)
             {
-                var pixelX = offsetX + (x * tileSize);
-                var pixelY = offsetY + (y * tileSize);
+                var pixelX = x * tileSize;
+                var pixelY = y * tileSize;
                 if (_maze[x, y] == MazeTile.Wall)
                 {
                     graphics.FillRectangle(wallBrush, pixelX, pixelY, tileSize, tileSize);
@@ -594,6 +644,48 @@ internal sealed class GameForm : Form
                     graphics.FillRectangle(floorBrush, pixelX, pixelY, tileSize, tileSize);
                 }
             }
+        }
+
+        return layer;
+    }
+
+    private void RebuildMazeLayer()
+    {
+        var replacement = CreateMazeLayer();
+        _mazeLayer.Dispose();
+        _mazeLayer = replacement;
+    }
+
+    private void RenderEffects(Graphics graphics)
+    {
+        const int tileSize = Runner.TileSize;
+        var offsetX = (LogicalWidth - (_maze.Width * tileSize)) / 2;
+        const int offsetY = 32;
+        using var pen = new Pen(Color.White, 1);
+        for (var i = 0; i < _effects.Capacity; i++)
+        {
+            var effect = _effects[i];
+            if (!effect.Active)
+            {
+                continue;
+            }
+
+            var progress = effect.Age / effect.Duration;
+            var alpha = _profile.Settings.ReducedFlashes
+                ? (int)(90 * (1 - progress))
+                : (int)(220 * (1 - progress));
+            pen.Color = effect.Kind switch
+            {
+                VisualEffectKind.PlayerDamage => Color.FromArgb(alpha, 255, 70, 95),
+                VisualEffectKind.RoundClear => Color.FromArgb(alpha, 80, 255, 210),
+                _ => Color.FromArgb(alpha, 255, 120, 210)
+            };
+            var x = offsetX + (int)effect.Position.X;
+            var y = offsetY + (int)effect.Position.Y;
+            var radius = effect.Kind == VisualEffectKind.RoundClear
+                ? 12 + (int)(progress * 80)
+                : 2 + (int)(progress * 10);
+            graphics.DrawRectangle(pen, x - radius, y - radius, radius * 2, radius * 2);
         }
     }
 
@@ -626,6 +718,19 @@ internal sealed class GameForm : Form
 
     private void ProcessSystemInput()
     {
+        if (_keyboard.WasPressed(Keys.F2))
+        {
+            _profile.Settings.HighContrast = !_profile.Settings.HighContrast;
+            RebuildMazeLayer();
+            _audio.PlayMenuInteraction();
+        }
+
+        if (_keyboard.WasPressed(Keys.F4))
+        {
+            _profile.Settings.ReducedFlashes = !_profile.Settings.ReducedFlashes;
+            _audio.PlayMenuInteraction();
+        }
+
         if (_keyboard.WasPressed(Keys.M))
         {
             _audio.ToggleMute();
@@ -637,6 +742,7 @@ internal sealed class GameForm : Form
             case GameScreen.Title:
                 if (_keyboard.WasPressed(Keys.Enter))
                 {
+                    _audio.PlayMenuInteraction();
                     ResetGame();
                     _flow.StartGame();
                 }
@@ -650,6 +756,7 @@ internal sealed class GameForm : Form
                 }
                 else if (_keyboard.WasPressed(Keys.I))
                 {
+                    _audio.PlayMenuInteraction();
                     _flow.ShowInstructions();
                 }
 
@@ -657,6 +764,7 @@ internal sealed class GameForm : Form
             case GameScreen.Instructions:
                 if (_keyboard.WasPressed(Keys.Enter) || _keyboard.WasPressed(Keys.Escape))
                 {
+                    _audio.PlayMenuInteraction();
                     _flow.ReturnToTitle();
                 }
 
@@ -664,6 +772,7 @@ internal sealed class GameForm : Form
             case GameScreen.Playing:
                 if (_keyboard.WasPressed(Keys.P) || _keyboard.WasPressed(Keys.Escape))
                 {
+                    _audio.PlayMenuInteraction();
                     _flow.TogglePause();
                 }
 
@@ -671,6 +780,7 @@ internal sealed class GameForm : Form
             case GameScreen.Paused:
                 if (_keyboard.WasPressed(Keys.P) || _keyboard.WasPressed(Keys.Escape))
                 {
+                    _audio.PlayMenuInteraction();
                     _flow.TogglePause();
                 }
                 else if (_keyboard.WasPressed(Keys.R))
@@ -680,6 +790,7 @@ internal sealed class GameForm : Form
                 }
                 else if (_keyboard.WasPressed(Keys.Q))
                 {
+                    _audio.PlayMenuInteraction();
                     _flow.ReturnToTitle();
                 }
 
@@ -687,6 +798,7 @@ internal sealed class GameForm : Form
             case GameScreen.GameOver:
                 if (_keyboard.WasPressed(Keys.Enter))
                 {
+                    _audio.PlayMenuInteraction();
                     ResetGame();
                     _flow.StartGame();
                 }
@@ -706,6 +818,7 @@ internal sealed class GameForm : Form
         _callsignBuffer = string.Empty;
         _enemies.Clear();
         _projectiles.Clear();
+        _effects.Clear();
         _rounds.Reset();
         _score.Reset();
         _scoreTwo.Reset();
@@ -728,6 +841,7 @@ internal sealed class GameForm : Form
 
     private void SelectAndStartMode(GameMode mode)
     {
+        _audio.PlayMenuInteraction();
         _flow.SelectMode(mode);
         _profile.Settings.LastMode = mode;
         ResetGame();

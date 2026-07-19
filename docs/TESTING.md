@@ -33,6 +33,11 @@ callsign sanitation, leaderboard qualification, sorting, and top-ten trimming.
 File smoke tests may set `NEON_LABYRINTH_DATA_DIR` to isolate profile writes
 from the normal per-user directory.
 
+Audio smoke verification constructs and preloads all six synthesized WAV
+streams, invokes each asynchronous cue, and disposes every player. Accessibility
+settings are covered by profile round-trip tests; effect hit positions are
+covered by combat result tests.
+
 ## Milestone 1 manual smoke procedure
 
 1. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1`.

@@ -119,12 +119,19 @@ public sealed class EnemySystem
     }
 
     public bool TryDestroyWithProjectiles(ProjectileSystem projectiles, out int ownerId) =>
-        TryDestroyWithProjectiles(projectiles, out ownerId, out _);
+        TryDestroyWithProjectiles(projectiles, out ownerId, out _, out _);
 
     public bool TryDestroyWithProjectiles(
         ProjectileSystem projectiles,
         out int ownerId,
-        out EnemyKind destroyedKind)
+        out EnemyKind destroyedKind) =>
+        TryDestroyWithProjectiles(projectiles, out ownerId, out destroyedKind, out _);
+
+    public bool TryDestroyWithProjectiles(
+        ProjectileSystem projectiles,
+        out int ownerId,
+        out EnemyKind destroyedKind,
+        out Vector2 destroyedPosition)
     {
         ArgumentNullException.ThrowIfNull(projectiles);
         for (var i = 0; i < _enemies.Length; i++)
@@ -136,6 +143,7 @@ public sealed class EnemySystem
             }
 
             destroyedKind = _enemies[i].Kind;
+            destroyedPosition = _enemies[i].Position;
             _enemies[i] = default;
             ActiveCount--;
             return true;
@@ -143,6 +151,7 @@ public sealed class EnemySystem
 
         ownerId = -1;
         destroyedKind = default;
+        destroyedPosition = default;
         return false;
     }
 

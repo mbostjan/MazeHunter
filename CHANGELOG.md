@@ -26,3 +26,5 @@
   owner-colored shots, survivor rules, cycle recovery, and no friendly fire.
 - Versioned per-user profile, callsign entry, top-ten leaderboard, last mode and
   mute persistence, atomic replacement, and corruption recovery.
+- Complete six-cue synthesized audio set, fixed-pool feedback effects, cached
+  maze rendering, high-contrast palette, and reduced-flash mode.

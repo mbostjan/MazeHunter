@@ -13,6 +13,8 @@ public sealed class PlayerProfileTests
         profile.Settings.Muted = true;
         profile.Settings.LastMode = GameMode.Cooperative;
         profile.Settings.PlayerOneCallsign = "NOVA";
+        profile.Settings.HighContrast = true;
+        profile.Settings.ReducedFlashes = true;
         profile.AddHighScore("NOVA", 12345, 7, GameMode.Cooperative, DateTimeOffset.UnixEpoch);
 
         var json = ProfileJson.Serialize(profile);
@@ -22,6 +24,8 @@ public sealed class PlayerProfileTests
         Assert.IsTrue(restored.Settings.Muted);
         Assert.AreEqual(GameMode.Cooperative, restored.Settings.LastMode);
         Assert.AreEqual("NOVA", restored.Settings.PlayerOneCallsign);
+        Assert.IsTrue(restored.Settings.HighContrast);
+        Assert.IsTrue(restored.Settings.ReducedFlashes);
         Assert.AreEqual(12345, restored.HighScores[0].Score);
         Assert.AreEqual(DateTimeOffset.UnixEpoch, restored.HighScores[0].AchievedAtUtc);
     }
@@ -83,4 +87,3 @@ public sealed class PlayerProfileTests
         Assert.AreEqual("RUNNER", PlayerProfile.SanitizeCallsign("***"));
     }
 }
-

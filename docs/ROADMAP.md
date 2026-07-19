@@ -16,5 +16,5 @@ and receive a focused Git commit.
 | 8 | Title/mode menus, instructions, HUD, pause/restart, complete solo flow. | Complete |
 | 9 | Complete local co-op, independent controls/scores/lives, survivor rules. | Complete |
 | 10 | Versioned JSON high scores/settings/mode with corruption recovery. | Complete |
-| 11 | Original pixel presentation, effects, complete generated audio, polish. | Next |
-| 12 | Full tests, diagnostics/performance review, self-contained package, final docs and smoke test. | Planned |
+| 11 | Original pixel presentation, effects, complete generated audio, polish. | Complete |
+| 12 | Full tests, diagnostics/performance review, self-contained package, final docs and smoke test. | Next |

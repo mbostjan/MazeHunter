@@ -46,6 +46,13 @@ eliminated. Regular life loss uses delayed protected respawn; a fully eliminated
 partner returns with one protected life only after the survivor clears a cycle.
 Respawn selection also treats the active teammate as a hazard to avoid overlap.
 
+## Presentation and accessibility
+
+The limited neon palette uses shape plus color to distinguish entities. F2
+switches to a persisted high-contrast maze/player palette. F4 enables persisted
+reduced-flash feedback by shortening and dimming combat/cycle effects. All six
+event sounds are original runtime-generated PCM cues and can be muted with M.
+
 ## Scoring and progression
 
 Construct values reflect danger and rarity. Consecutive eliminations without

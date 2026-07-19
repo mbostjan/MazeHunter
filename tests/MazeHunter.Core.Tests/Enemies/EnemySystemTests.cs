@@ -84,6 +84,20 @@ public sealed class EnemySystemTests
     }
 
     [TestMethod]
+    public void DestroyResult_ReportsEffectPosition()
+    {
+        var enemies = new EnemySystem(seed: 1);
+        var projectiles = new ProjectileSystem();
+        var position = new Vector2(20, 12);
+        enemies.TrySpawnDrifter(position);
+        projectiles.TryFire(1, position, Direction.Right);
+
+        enemies.TryDestroyWithProjectiles(projectiles, out _, out _, out var destroyedPosition);
+
+        Assert.AreEqual(position, destroyedPosition);
+    }
+
+    [TestMethod]
     public void Capacity_PreventsUnboundedSpawning()
     {
         var enemies = new EnemySystem(seed: 1, capacity: 1);
