@@ -3,9 +3,10 @@
 ## Automated
 
 Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1`.
-Current tests cover fixed-step accumulation, long-frame clamping, and reset
-behavior. Later milestones add maze validity, movement, collision, projectiles,
-scoring, navigation, cycles, lives/respawn, and storage.
+Current tests cover fixed-step accumulation, long-frame clamping, reset
+behavior, curated maze validity, connectivity, boundary enforcement, and static
+occupancy collision. Later milestones add movement, projectiles, scoring,
+navigation, cycles, lives/respawn, and storage.
 
 ## Milestone 1 manual smoke procedure
 

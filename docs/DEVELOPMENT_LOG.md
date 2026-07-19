@@ -14,3 +14,13 @@
 
 No defects remain open for Milestone 1.
 
+## 2026-07-19 — Milestone 2
+
+- Added immutable, ASCII-authored maze representation with closed-boundary and
+  full-connectivity validation.
+- Added authoritative circle-versus-tile occupancy queries with solid
+  out-of-bounds behavior.
+- Added the original 31×21 Signal Crossing maze.
+- Added simultaneous held/pressed keyboard state and focus-loss clearing.
+- Replaced the foundation screen with a crisp maze and live input preview.
+- Added six maze validation and collision tests.

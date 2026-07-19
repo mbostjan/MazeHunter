@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
+using MazeHunter.Core.Mazes;
 using MazeHunter.Core.Timing;
+using MazeHunter.Game.Input;
 
 namespace MazeHunter.Game.Application;
 
@@ -14,6 +16,8 @@ internal sealed class GameForm : Form
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
     private readonly FixedStepClock _clock = new();
     private readonly System.Windows.Forms.Timer _pump = new() { Interval = 1 };
+    private readonly KeyboardState _keyboard = new();
+    private readonly Maze _maze = MazeCatalog.CreateSignalCrossing();
     private long _previousTicks;
     private double _presentationTime;
 
@@ -39,7 +43,11 @@ internal sealed class GameForm : Form
             _clock.Reset();
             _previousTicks = _stopwatch.ElapsedTicks;
         };
-        Deactivate += (_, _) => _clock.Reset();
+        Deactivate += (_, _) =>
+        {
+            _clock.Reset();
+            _keyboard.Clear();
+        };
     }
 
     protected override void Dispose(bool disposing)
@@ -70,6 +78,20 @@ internal sealed class GameForm : Form
         e.Graphics.DrawImage(_framebuffer, destination, 0, 0, LogicalWidth, LogicalHeight, GraphicsUnit.Pixel);
     }
 
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        _keyboard.Press(e.KeyCode);
+        e.Handled = true;
+        base.OnKeyDown(e);
+    }
+
+    protected override void OnKeyUp(KeyEventArgs e)
+    {
+        _keyboard.Release(e.KeyCode);
+        e.Handled = true;
+        base.OnKeyUp(e);
+    }
+
     private void PumpOnTick(object? sender, EventArgs e)
     {
         var ticks = _stopwatch.ElapsedTicks;
@@ -93,6 +115,7 @@ internal sealed class GameForm : Form
     private void UpdateSimulation(float deltaSeconds)
     {
         _presentationTime += deltaSeconds;
+        _keyboard.EndUpdate();
     }
 
     private void RenderLogicalFrame()
@@ -102,21 +125,57 @@ internal sealed class GameForm : Form
         graphics.SmoothingMode = SmoothingMode.None;
         graphics.TextRenderingHint = TextRenderingHint.SingleBitPerPixelGridFit;
 
-        using var borderPen = new Pen(Color.FromArgb(35, 214, 190), 2);
-        graphics.DrawRectangle(borderPen, 18, 20, 283, 199);
-
         var pulse = (int)(20 + (Math.Sin(_presentationTime * 3) + 1) * 25);
         using var glowBrush = new SolidBrush(Color.FromArgb(255, 55 + pulse, 218, 190));
-        using var titleFont = new Font(FontFamily.GenericMonospace, 22, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var titleFont = new Font(FontFamily.GenericMonospace, 13, FontStyle.Bold, GraphicsUnit.Pixel);
         using var textFont = new Font(FontFamily.GenericMonospace, 9, FontStyle.Bold, GraphicsUnit.Pixel);
 
-        DrawCentered(graphics, "NEON LABYRINTH", titleFont, glowBrush, 74);
+        DrawCentered(graphics, "NEON LABYRINTH // GRID PREVIEW", titleFont, glowBrush, 8);
+        RenderMaze(graphics);
+
         using var accentBrush = new SolidBrush(Color.FromArgb(255, 240, 85, 150));
-        DrawCentered(graphics, "SIGNAL ACQUIRED", textFont, accentBrush, 114);
+        var inputSignal = GetInputSignal();
+        DrawCentered(graphics, inputSignal, textFont, accentBrush, 222);
         using var dimBrush = new SolidBrush(Color.FromArgb(255, 150, 164, 190));
-        DrawCentered(graphics, "SYSTEM CORE // MILESTONE 1", textFont, dimBrush, 142);
-        DrawCentered(graphics, "FIXED 60 HZ SIMULATION ONLINE", textFont, dimBrush, 158);
-        DrawCentered(graphics, "CLOSE WINDOW TO EXIT", textFont, dimBrush, 190);
+        DrawCentered(graphics, "WASD + ARROWS INPUT MONITOR", textFont, dimBrush, 232);
+    }
+
+    private void RenderMaze(Graphics graphics)
+    {
+        const int tileSize = 8;
+        var offsetX = (LogicalWidth - (_maze.Width * tileSize)) / 2;
+        const int offsetY = 32;
+        using var wallBrush = new SolidBrush(Color.FromArgb(255, 29, 75, 112));
+        using var wallCoreBrush = new SolidBrush(Color.FromArgb(255, 44, 210, 190));
+        using var floorBrush = new SolidBrush(Color.FromArgb(255, 8, 13, 27));
+
+        for (var y = 0; y < _maze.Height; y++)
+        {
+            for (var x = 0; x < _maze.Width; x++)
+            {
+                var pixelX = offsetX + (x * tileSize);
+                var pixelY = offsetY + (y * tileSize);
+                if (_maze[x, y] == MazeTile.Wall)
+                {
+                    graphics.FillRectangle(wallBrush, pixelX, pixelY, tileSize, tileSize);
+                    graphics.FillRectangle(wallCoreBrush, pixelX + 2, pixelY + 2, 4, 4);
+                }
+                else
+                {
+                    graphics.FillRectangle(floorBrush, pixelX, pixelY, tileSize, tileSize);
+                }
+            }
+        }
+    }
+
+    private string GetInputSignal()
+    {
+        Span<char> signal = stackalloc char[4];
+        signal[0] = _keyboard.IsDown(Keys.W) || _keyboard.IsDown(Keys.Up) ? '^' : '-';
+        signal[1] = _keyboard.IsDown(Keys.A) || _keyboard.IsDown(Keys.Left) ? '<' : '-';
+        signal[2] = _keyboard.IsDown(Keys.S) || _keyboard.IsDown(Keys.Down) ? 'v' : '-';
+        signal[3] = _keyboard.IsDown(Keys.D) || _keyboard.IsDown(Keys.Right) ? '>' : '-';
+        return $"INPUT [{new string(signal)}]";
     }
 
     private static void DrawCentered(Graphics graphics, string text, Font font, Brush brush, float y)
@@ -125,4 +184,3 @@ internal sealed class GameForm : Form
         graphics.DrawString(text, font, brush, (LogicalWidth - size.Width) / 2, y);
     }
 }
-

@@ -17,7 +17,11 @@ can be verified without opening a window.
 - **Loop/timing:** `FixedStepClock` accumulates wall time and emits 60 Hz steps.
 - **Presentation:** `GameForm` owns a 320×240 bitmap and scales it with nearest
   neighbor interpolation into a letterboxed resizable window.
-- **Future Core systems:** state machine, input commands, maze/collision, actors,
+- **Maze/collision:** immutable validated ASCII-authored tile grids own static
+  collision queries; out-of-bounds coordinates are always solid.
+- **Input:** the WinForms adapter records held and newly pressed keys separately,
+  supports simultaneous presses, and clears state whenever focus is lost.
+- **Future Core systems:** state machine, input commands, actors,
   projectiles, enemy strategies/pathfinding, spawning, rounds, score, settings,
   persistence, and diagnostic snapshots.
 - **Future platform systems:** keyboard adapter, renderer, asynchronous audio,
@@ -45,4 +49,3 @@ on an ordinary desktop, with steady-state gameplay allocations near zero.
 Versioned JSON will be stored under
 `%LOCALAPPDATA%\NeonLabyrinth\profile.json`. Writes will use a temporary file
 and replacement; malformed data will be quarantined and defaults restored.
-

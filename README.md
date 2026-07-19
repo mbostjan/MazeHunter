@@ -5,9 +5,9 @@ players. Players are signal runners trapped in a shifting defense grid, clearing
 hostile constructs with directional pulse shots. It draws on the broad arcade
 maze-shooter genre while using original names, rules, mazes, graphics, and audio.
 
-The project currently contains the Milestone 1 application shell: a responsive
-Windows Forms window, logical 320×240 framebuffer, crisp nearest-neighbor scaling,
-fixed 60 Hz simulation clock, focus-safe timing, and clean shutdown.
+The current build contains the Milestone 2 foundation: a responsive Windows
+Forms shell, logical 320×240 framebuffer, fixed 60 Hz simulation, simultaneous
+keyboard tracking, a validated original tile maze, and static collision rules.
 
 ## Requirements
 
