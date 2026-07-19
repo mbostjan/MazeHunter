@@ -17,6 +17,14 @@ public static class SpawnPlanner
         return new PlayerSpawns(ToCenter(playerOneTile, tileSize), ToCenter(playerTwoTile, tileSize));
     }
 
+    public static Vector2 FindEnemyEntry(Maze maze, int tileSize = 8)
+    {
+        ArgumentNullException.ThrowIfNull(maze);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(tileSize);
+        var tile = FindClosestWalkable(maze, new GridPoint(maze.Width / 2, 1));
+        return ToCenter(tile, tileSize);
+    }
+
     private static GridPoint FindClosestWalkable(Maze maze, GridPoint target, GridPoint? excluded = null)
     {
         var best = default(GridPoint);
@@ -47,4 +55,3 @@ public static class SpawnPlanner
     private static Vector2 ToCenter(GridPoint tile, int tileSize) =>
         new((tile.X * tileSize) + (tileSize / 2f), (tile.Y * tileSize) + (tileSize / 2f));
 }
-

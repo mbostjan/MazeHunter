@@ -8,7 +8,9 @@ behavior, curated maze validity, connectivity, boundary enforcement, static
 collision, runner speed, wall stops, buffered turns, reversal, respawn reset,
 safe spawn placement, projectile movement, wall collision, tunneling prevention,
 lifetime, owner fire limits, and circle hits. Later milestones add scoring,
-enemy navigation, cycles, life rules, and storage.
+advanced navigation, cycles, life rules, and storage. Drifter coverage includes
+seed reproducibility, long-run corridor safety, reversal rules, pool capacity,
+and projectile removal.
 
 ## Milestone 1 manual smoke procedure
 

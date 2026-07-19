@@ -14,3 +14,5 @@
   safe player spawns.
 - Fixed-pool directional pulses, collision/hit rules, and original synthesized
   asynchronous firing audio with mute control.
+- Seeded fixed-pool Drifter enemies with fair tile-center navigation and
+  projectile destruction.

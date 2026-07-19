@@ -29,4 +29,13 @@ public static class DirectionExtensions
         direction != Direction.None &&
         other != Direction.None &&
         direction.IsVertical() != other.IsVertical();
+
+    public static Direction Opposite(this Direction direction) => direction switch
+    {
+        Direction.Up => Direction.Down,
+        Direction.Down => Direction.Up,
+        Direction.Left => Direction.Right,
+        Direction.Right => Direction.Left,
+        _ => Direction.None
+    };
 }

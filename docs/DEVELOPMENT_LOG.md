@@ -43,3 +43,16 @@ No defects remain open for Milestone 1.
 - Synthesized an original descending square-wave firing effect in memory and
   added asynchronous playback plus M mute control.
 - Added projectile speed, wall, tunneling, lifetime, fire-limit, and hit tests.
+
+## 2026-07-19 — Milestone 5
+
+- Added fixed-capacity enemy entities and reproducible xorshift gameplay random.
+- Added Drifter navigation with tile-center decisions, a 60% forward
+  preference, avoidable-reversal rejection, and dead-end recovery.
+- Added safe upper-grid enemy entry selection and a distinctive original
+  animated construct silhouette.
+- Connected projectile hits to enemy removal with owner attribution.
+- Added deterministic navigation, corridor safety, capacity, reversal, random
+  sequence, and projectile destruction tests.
+- Smoke measurement exposed excessive repaint pumping at a 1 ms timer interval;
+  changed presentation pumping to 16 ms while retaining independent 60 Hz rules.

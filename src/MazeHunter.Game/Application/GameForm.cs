@@ -3,6 +3,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 using MazeHunter.Core.Actors;
 using MazeHunter.Core.Combat;
+using MazeHunter.Core.Enemies;
 using MazeHunter.Core.Mazes;
 using MazeHunter.Core.Spawning;
 using MazeHunter.Core.Timing;
@@ -19,11 +20,12 @@ internal sealed class GameForm : Form
     private readonly Bitmap _framebuffer = new(LogicalWidth, LogicalHeight);
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
     private readonly FixedStepClock _clock = new();
-    private readonly System.Windows.Forms.Timer _pump = new() { Interval = 1 };
+    private readonly System.Windows.Forms.Timer _pump = new() { Interval = 16 };
     private readonly KeyboardState _keyboard = new();
     private readonly Maze _maze = MazeCatalog.CreateSignalCrossing();
     private readonly Runner _runner;
     private readonly ProjectileSystem _projectiles = new();
+    private readonly EnemySystem _enemies = new(seed: 0x4E454F4E);
     private readonly AudioSystem _audio = new();
     private long _previousTicks;
     private double _presentationTime;
@@ -31,6 +33,7 @@ internal sealed class GameForm : Form
     public GameForm()
     {
         _runner = new Runner(SpawnPlanner.FindPlayerSpawns(_maze).PlayerOne);
+        _enemies.TrySpawnDrifter(SpawnPlanner.FindEnemyEntry(_maze));
         Text = "Neon Labyrinth";
         ClientSize = new Size(960, 720);
         MinimumSize = new Size(640, 520);
@@ -140,6 +143,8 @@ internal sealed class GameForm : Form
         }
 
         _projectiles.Update(_maze, deltaSeconds);
+        _enemies.Update(_maze, deltaSeconds);
+        _enemies.TryDestroyWithProjectiles(_projectiles, out _);
         _keyboard.EndUpdate();
     }
 
@@ -158,6 +163,7 @@ internal sealed class GameForm : Form
         DrawCentered(graphics, "NEON LABYRINTH // RUNNER LINK", titleFont, glowBrush, 8);
         RenderMaze(graphics);
         RenderProjectiles(graphics);
+        RenderEnemies(graphics);
         RenderRunner(graphics);
 
         using var accentBrush = new SolidBrush(Color.FromArgb(255, 240, 85, 150));
@@ -166,6 +172,32 @@ internal sealed class GameForm : Form
         using var dimBrush = new SolidBrush(Color.FromArgb(255, 150, 164, 190));
         var footer = _audio.Muted ? "SPACE FIRE // M AUDIO ON" : "SPACE FIRE // M MUTE";
         DrawCentered(graphics, footer, textFont, dimBrush, 232);
+    }
+
+    private void RenderEnemies(Graphics graphics)
+    {
+        const int tileSize = Runner.TileSize;
+        var offsetX = (LogicalWidth - (_maze.Width * tileSize)) / 2;
+        const int offsetY = 32;
+        using var shellBrush = new SolidBrush(Color.FromArgb(255, 178, 70, 255));
+        using var eyeBrush = new SolidBrush(Color.FromArgb(255, 110, 245, 255));
+        using var backgroundBrush = new SolidBrush(Color.FromArgb(255, 8, 13, 27));
+
+        for (var i = 0; i < _enemies.Capacity; i++)
+        {
+            var enemy = _enemies[i];
+            if (!enemy.Active)
+            {
+                continue;
+            }
+
+            var x = offsetX + (int)MathF.Round(enemy.Position.X);
+            var y = offsetY + (int)MathF.Round(enemy.Position.Y);
+            graphics.FillRectangle(shellBrush, x - 3, y - 3, 7, 7);
+            graphics.FillRectangle(backgroundBrush, x - 1, y - 1, 3, 3);
+            var eyeOffset = enemy.AnimationFrame == 0 ? -2 : 2;
+            graphics.FillRectangle(eyeBrush, x + eyeOffset, y, 1, 1);
+        }
     }
 
     private void RenderProjectiles(Graphics graphics)

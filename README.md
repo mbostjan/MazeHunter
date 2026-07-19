@@ -10,6 +10,8 @@ Forms shell, logical 320×240 framebuffer, fixed 60 Hz simulation, simultaneous
 keyboard tracking, a validated original tile maze, static collision rules, and
 a controllable animated signal runner with buffered corridor turns and
 directional pulses with original synthesized firing audio.
+The first enemy, the seeded maze-wandering Drifter construct, is active and can
+be destroyed by pulse fire.
 
 ## Requirements
 
