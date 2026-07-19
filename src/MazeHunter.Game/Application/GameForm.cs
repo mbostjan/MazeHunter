@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
+using MazeHunter.Core.Actors;
 using MazeHunter.Core.Mazes;
+using MazeHunter.Core.Spawning;
 using MazeHunter.Core.Timing;
 using MazeHunter.Game.Input;
 
@@ -18,11 +20,13 @@ internal sealed class GameForm : Form
     private readonly System.Windows.Forms.Timer _pump = new() { Interval = 1 };
     private readonly KeyboardState _keyboard = new();
     private readonly Maze _maze = MazeCatalog.CreateSignalCrossing();
+    private readonly Runner _runner;
     private long _previousTicks;
     private double _presentationTime;
 
     public GameForm()
     {
+        _runner = new Runner(SpawnPlanner.FindPlayerSpawns(_maze).PlayerOne);
         Text = "Neon Labyrinth";
         ClientSize = new Size(960, 720);
         MinimumSize = new Size(640, 520);
@@ -115,6 +119,7 @@ internal sealed class GameForm : Form
     private void UpdateSimulation(float deltaSeconds)
     {
         _presentationTime += deltaSeconds;
+        _runner.Update(_maze, GetRequestedDirection(), deltaSeconds);
         _keyboard.EndUpdate();
     }
 
@@ -130,14 +135,43 @@ internal sealed class GameForm : Form
         using var titleFont = new Font(FontFamily.GenericMonospace, 13, FontStyle.Bold, GraphicsUnit.Pixel);
         using var textFont = new Font(FontFamily.GenericMonospace, 9, FontStyle.Bold, GraphicsUnit.Pixel);
 
-        DrawCentered(graphics, "NEON LABYRINTH // GRID PREVIEW", titleFont, glowBrush, 8);
+        DrawCentered(graphics, "NEON LABYRINTH // RUNNER LINK", titleFont, glowBrush, 8);
         RenderMaze(graphics);
+        RenderRunner(graphics);
 
         using var accentBrush = new SolidBrush(Color.FromArgb(255, 240, 85, 150));
         var inputSignal = GetInputSignal();
         DrawCentered(graphics, inputSignal, textFont, accentBrush, 222);
         using var dimBrush = new SolidBrush(Color.FromArgb(255, 150, 164, 190));
-        DrawCentered(graphics, "WASD + ARROWS INPUT MONITOR", textFont, dimBrush, 232);
+        DrawCentered(graphics, "WASD TO NAVIGATE THE SIGNAL GRID", textFont, dimBrush, 232);
+    }
+
+    private void RenderRunner(Graphics graphics)
+    {
+        const int tileSize = Runner.TileSize;
+        var offsetX = (LogicalWidth - (_maze.Width * tileSize)) / 2;
+        const int offsetY = 32;
+        var x = offsetX + (int)MathF.Round(_runner.Position.X);
+        var y = offsetY + (int)MathF.Round(_runner.Position.Y);
+
+        using var shadowBrush = new SolidBrush(Color.FromArgb(255, 30, 52, 80));
+        using var runnerBrush = new SolidBrush(Color.FromArgb(255, 255, 206, 72));
+        graphics.FillRectangle(shadowBrush, x - 4, y - 4, 8, 8);
+
+        Point[] arrow = _runner.Facing switch
+        {
+            Direction.Up => [new(x, y - 4), new(x - 3, y + 3), new(x + 3, y + 3)],
+            Direction.Down => [new(x, y + 4), new(x - 3, y - 3), new(x + 3, y - 3)],
+            Direction.Left => [new(x - 4, y), new(x + 3, y - 3), new(x + 3, y + 3)],
+            _ => [new(x + 4, y), new(x - 3, y - 3), new(x - 3, y + 3)]
+        };
+        graphics.FillPolygon(runnerBrush, arrow);
+
+        if (_runner.AnimationFrame == 1)
+        {
+            using var coreBrush = new SolidBrush(Color.White);
+            graphics.FillRectangle(coreBrush, x - 1, y - 1, 2, 2);
+        }
     }
 
     private void RenderMaze(Graphics graphics)
@@ -176,6 +210,27 @@ internal sealed class GameForm : Form
         signal[2] = _keyboard.IsDown(Keys.S) || _keyboard.IsDown(Keys.Down) ? 'v' : '-';
         signal[3] = _keyboard.IsDown(Keys.D) || _keyboard.IsDown(Keys.Right) ? '>' : '-';
         return $"INPUT [{new string(signal)}]";
+    }
+
+    private Direction GetRequestedDirection()
+    {
+        var direction = Direction.None;
+        var newest = -1L;
+        Select(Keys.W, Direction.Up);
+        Select(Keys.S, Direction.Down);
+        Select(Keys.A, Direction.Left);
+        Select(Keys.D, Direction.Right);
+        return direction;
+
+        void Select(Keys key, Direction candidate)
+        {
+            var order = _keyboard.PressOrder(key);
+            if (order > newest)
+            {
+                newest = order;
+                direction = candidate;
+            }
+        }
     }
 
     private static void DrawCentered(Graphics graphics, string text, Font font, Brush brush, float y)

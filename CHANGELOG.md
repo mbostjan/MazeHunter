@@ -10,3 +10,5 @@
 - Core timing tests and Windows build automation.
 - Validated original maze format, static collision queries, simultaneous
   keyboard state, and Signal Crossing maze preview.
+- Responsive runner movement with buffered turns, animation, and deterministic
+  safe player spawns.

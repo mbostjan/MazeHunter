@@ -24,3 +24,12 @@ No defects remain open for Milestone 1.
 - Added simultaneous held/pressed keyboard state and focus-loss clearing.
 - Replaced the foundation screen with a crisp maze and live input preview.
 - Added six maze validation and collision tests.
+
+## 2026-07-19 — Milestone 3
+
+- Added deterministic signal-runner state with 48 pixel/second movement.
+- Added buffered junction turns, immediate reversals, one-pixel collision
+  substeps, facing direction, and distance-based two-frame animation.
+- Added deterministic safe and separated spawn selection for two players.
+- Connected most-recent-held WASD input to the Core runner model.
+- Added movement, wall, turn, reversal, respawn, and spawn tests.

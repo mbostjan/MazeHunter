@@ -21,7 +21,12 @@ can be verified without opening a window.
   collision queries; out-of-bounds coordinates are always solid.
 - **Input:** the WinForms adapter records held and newly pressed keys separately,
   supports simultaneous presses, and clears state whenever focus is lost.
-- **Future Core systems:** state machine, input commands, actors,
+- **Actors:** `Runner` owns deterministic axis-aligned movement, direction
+  buffering, collision-safe substeps, facing, and animation phase. Platform
+  input is reduced to a direction before entering Core.
+- **Spawning:** deterministic target-based selection returns distinct valid
+  tile-center positions for both local players.
+- **Future Core systems:** state machine, input commands,
   projectiles, enemy strategies/pathfinding, spawning, rounds, score, settings,
   persistence, and diagnostic snapshots.
 - **Future platform systems:** keyboard adapter, renderer, asynchronous audio,

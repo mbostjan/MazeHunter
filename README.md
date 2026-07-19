@@ -7,7 +7,8 @@ maze-shooter genre while using original names, rules, mazes, graphics, and audio
 
 The current build contains the Milestone 2 foundation: a responsive Windows
 Forms shell, logical 320×240 framebuffer, fixed 60 Hz simulation, simultaneous
-keyboard tracking, a validated original tile maze, and static collision rules.
+keyboard tracking, a validated original tile maze, static collision rules, and
+a controllable animated signal runner with buffered corridor turns.
 
 ## Requirements
 
