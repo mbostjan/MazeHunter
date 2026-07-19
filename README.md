@@ -8,7 +8,8 @@ maze-shooter genre while using original names, rules, mazes, graphics, and audio
 The current build contains the Milestone 2 foundation: a responsive Windows
 Forms shell, logical 320×240 framebuffer, fixed 60 Hz simulation, simultaneous
 keyboard tracking, a validated original tile maze, static collision rules, and
-a controllable animated signal runner with buffered corridor turns.
+a controllable animated signal runner with buffered corridor turns and
+directional pulses with original synthesized firing audio.
 
 ## Requirements
 
@@ -29,8 +30,8 @@ Direct equivalents are `dotnet build`, `dotnet test`, and
 
 ## Controls
 
-Gameplay controls will be enabled in Milestone 2. Planned defaults are WASD +
-Space for Player 1, arrow keys + Enter/Right Control for Player 2, P/Escape to
-pause, M to mute, F3 for diagnostics, and Alt+Enter for display mode.
+Current controls are WASD to move, Space to fire, and M to mute. Planned
+Player 2 defaults are arrow keys plus Enter/Right Control; P/Escape will pause,
+F3 will toggle diagnostics, and Alt+Enter will toggle display mode.
 
 See [GAME_DESIGN.md](docs/GAME_DESIGN.md) and [ROADMAP.md](docs/ROADMAP.md).

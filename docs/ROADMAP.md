@@ -9,8 +9,8 @@ and receive a focused Git commit.
 | 1 | Resizable WinForms shell; 320×240 nearest-neighbor framebuffer; fixed 60 Hz clock; focus-safe pause; clean exit; timing tests. | Complete |
 | 2 | Simultaneous input state, valid curated maze, collision queries, basic maze render; maze/movement tests. | Complete |
 | 3 | Responsive runner movement, junction turns, animation, spawn placement; movement tests. | Complete |
-| 4 | Directional pulses, walls/hits/lifetime, fire limits, nonblocking original SFX. | Next |
-| 5 | Enemy entity framework and fair Drifter behavior. | Planned |
+| 4 | Directional pulses, walls/hits/lifetime, fire limits, nonblocking original SFX. | Complete |
+| 5 | Enemy entity framework and fair Drifter behavior. | Next |
 | 6 | Tracer, Vector, Veil, Surge, Prism; spawn director and cycle progression. | Planned |
 | 7 | Score, chains, lives, damage, protected respawn, game over. | Planned |
 | 8 | Title/mode menus, instructions, HUD, pause/restart, complete solo flow. | Planned |

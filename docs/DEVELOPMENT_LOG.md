@@ -33,3 +33,13 @@ No defects remain open for Milestone 1.
 - Added deterministic safe and separated spawn selection for two players.
 - Connected most-recent-held WASD input to the Core runner model.
 - Added movement, wall, turn, reversal, respawn, and spawn tests.
+
+## 2026-07-19 — Milestone 4
+
+- Added a fixed-capacity directional pulse pool with one active shot per owner.
+- Added 112 pixel/second substep movement, wall removal, 2.5-second lifetime,
+  owner-aware circle hit detection, and pool clearing.
+- Added vivid direction-shaped pulse rendering and Space firing.
+- Synthesized an original descending square-wave firing effect in memory and
+  added asynchronous playback plus M mute control.
+- Added projectile speed, wall, tunneling, lifetime, fire-limit, and hit tests.

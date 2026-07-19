@@ -26,6 +26,10 @@ can be verified without opening a window.
   input is reduced to a direction before entering Core.
 - **Spawning:** deterministic target-based selection returns distinct valid
   tile-center positions for both local players.
+- **Combat:** a fixed-capacity projectile pool enforces per-owner fire limits,
+  advances in collision-safe substeps, and provides reusable circle-hit queries.
+- **Audio:** original PCM waveforms are synthesized and preloaded at startup;
+  Windows asynchronous playback never waits in the simulation loop.
 - **Future Core systems:** state machine, input commands,
   projectiles, enemy strategies/pathfinding, spawning, rounds, score, settings,
   persistence, and diagnostic snapshots.

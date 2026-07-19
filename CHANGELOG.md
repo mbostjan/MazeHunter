@@ -12,3 +12,5 @@
   keyboard state, and Signal Crossing maze preview.
 - Responsive runner movement with buffered turns, animation, and deterministic
   safe player spawns.
+- Fixed-pool directional pulses, collision/hit rules, and original synthesized
+  asynchronous firing audio with mute control.

@@ -2,9 +2,11 @@ using System.Diagnostics;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 using MazeHunter.Core.Actors;
+using MazeHunter.Core.Combat;
 using MazeHunter.Core.Mazes;
 using MazeHunter.Core.Spawning;
 using MazeHunter.Core.Timing;
+using MazeHunter.Game.Audio;
 using MazeHunter.Game.Input;
 
 namespace MazeHunter.Game.Application;
@@ -21,6 +23,8 @@ internal sealed class GameForm : Form
     private readonly KeyboardState _keyboard = new();
     private readonly Maze _maze = MazeCatalog.CreateSignalCrossing();
     private readonly Runner _runner;
+    private readonly ProjectileSystem _projectiles = new();
+    private readonly AudioSystem _audio = new();
     private long _previousTicks;
     private double _presentationTime;
 
@@ -61,6 +65,7 @@ internal sealed class GameForm : Form
             _pump.Stop();
             _pump.Dispose();
             _framebuffer.Dispose();
+            _audio.Dispose();
         }
 
         base.Dispose(disposing);
@@ -120,6 +125,21 @@ internal sealed class GameForm : Form
     {
         _presentationTime += deltaSeconds;
         _runner.Update(_maze, GetRequestedDirection(), deltaSeconds);
+        if (_keyboard.WasPressed(Keys.Space))
+        {
+            var origin = _runner.Position + (_runner.Facing.ToVector() * 5f);
+            if (_projectiles.TryFire(1, origin, _runner.Facing))
+            {
+                _audio.PlayFire();
+            }
+        }
+
+        if (_keyboard.WasPressed(Keys.M))
+        {
+            _audio.ToggleMute();
+        }
+
+        _projectiles.Update(_maze, deltaSeconds);
         _keyboard.EndUpdate();
     }
 
@@ -137,13 +157,46 @@ internal sealed class GameForm : Form
 
         DrawCentered(graphics, "NEON LABYRINTH // RUNNER LINK", titleFont, glowBrush, 8);
         RenderMaze(graphics);
+        RenderProjectiles(graphics);
         RenderRunner(graphics);
 
         using var accentBrush = new SolidBrush(Color.FromArgb(255, 240, 85, 150));
         var inputSignal = GetInputSignal();
         DrawCentered(graphics, inputSignal, textFont, accentBrush, 222);
         using var dimBrush = new SolidBrush(Color.FromArgb(255, 150, 164, 190));
-        DrawCentered(graphics, "WASD TO NAVIGATE THE SIGNAL GRID", textFont, dimBrush, 232);
+        var footer = _audio.Muted ? "SPACE FIRE // M AUDIO ON" : "SPACE FIRE // M MUTE";
+        DrawCentered(graphics, footer, textFont, dimBrush, 232);
+    }
+
+    private void RenderProjectiles(Graphics graphics)
+    {
+        const int tileSize = Runner.TileSize;
+        var offsetX = (LogicalWidth - (_maze.Width * tileSize)) / 2;
+        const int offsetY = 32;
+        using var pulseBrush = new SolidBrush(Color.FromArgb(255, 255, 82, 164));
+        using var coreBrush = new SolidBrush(Color.White);
+
+        for (var i = 0; i < _projectiles.Capacity; i++)
+        {
+            var projectile = _projectiles[i];
+            if (!projectile.Active)
+            {
+                continue;
+            }
+
+            var x = offsetX + (int)MathF.Round(projectile.Position.X);
+            var y = offsetY + (int)MathF.Round(projectile.Position.Y);
+            if (projectile.Direction.IsVertical())
+            {
+                graphics.FillRectangle(pulseBrush, x - 1, y - 3, 3, 7);
+            }
+            else
+            {
+                graphics.FillRectangle(pulseBrush, x - 3, y - 1, 7, 3);
+            }
+
+            graphics.FillRectangle(coreBrush, x, y, 1, 1);
+        }
     }
 
     private void RenderRunner(Graphics graphics)
