@@ -8,7 +8,7 @@ Run:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1 -Configuration Release
 ```
 
-The 65 automated tests cover:
+The 69 automated tests cover:
 
 - fixed-step timing, clamping, and reset;
 - maze dimensions, boundary closure, connectivity, and invalid layouts;
@@ -19,7 +19,10 @@ The 65 automated tests cover:
 - deterministic random sequences and enemy navigation;
 - all six enemy profiles, nearest-runner targeting, and lane avoidance;
 - enemy pool capacity, contact, and destruction result positions;
-- round spawn safety, quotas, completion, reset, and escalation;
+- three distinct handcrafted levels, spawn configurations, quotas, transition,
+  reset, escalation, and layout rotation;
+- configurable tile/collision geometry and larger-body wall safety;
+- every enemy entry leaving spawn within one second and continuing to navigate;
 - score values, chain growth/cap/expiry, cycle, life, and team bonuses;
 - life loss, respawn delay, protection, recovery, reset, and game over;
 - solo/co-op flow, pause gating, survivor rules, and no-friendly-fire policy;
@@ -59,7 +62,7 @@ steady-frame heap allocation.
 ## Known non-critical limitations
 
 - Keyboard input only; controllers are deferred.
-- One curated maze ships in 1.0.
+- Three curated mazes ship in 1.1 and rotate after the third level.
 - Windowed play only; the window remains freely resizable.
 - Local multiplayer only.
 - Rendering and audio require Windows desktop APIs, so automated tests focus on

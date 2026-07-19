@@ -2,6 +2,7 @@ using System.Numerics;
 using MazeHunter.Core.Actors;
 using MazeHunter.Core.Combat;
 using MazeHunter.Core.Enemies;
+using MazeHunter.Core.Geometry;
 using MazeHunter.Core.Mazes;
 
 namespace MazeHunter.Core.Tests.Enemies;
@@ -22,15 +23,15 @@ public sealed class EnemySystemTests
     public void Update_KeepsDrifterInsideWalkableCorridors()
     {
         var enemies = new EnemySystem(seed: 42);
-        enemies.TrySpawnDrifter(new Vector2(12, 12));
+        enemies.TrySpawnDrifter(new Vector2(15, 15));
 
         for (var i = 0; i < 600; i++)
         {
             enemies.Update(LoopMaze, 1f / 60);
             Assert.IsTrue(LoopMaze.CanOccupy(
                 enemies[0].Position,
-                EnemySystem.CollisionRadius,
-                Runner.TileSize));
+                enemies.CollisionRadius,
+                GameGeometry.Default.TileSize));
         }
     }
 
@@ -39,8 +40,8 @@ public sealed class EnemySystemTests
     {
         var first = new EnemySystem(seed: 77);
         var second = new EnemySystem(seed: 77);
-        first.TrySpawnDrifter(new Vector2(12, 12));
-        second.TrySpawnDrifter(new Vector2(12, 12));
+        first.TrySpawnDrifter(new Vector2(15, 15));
+        second.TrySpawnDrifter(new Vector2(15, 15));
 
         for (var i = 0; i < 300; i++)
         {
@@ -56,7 +57,7 @@ public sealed class EnemySystemTests
     public void Drifter_DoesNotReverseWhenForwardRouteExists()
     {
         var enemies = new EnemySystem(seed: 3);
-        enemies.TrySpawnDrifter(new Vector2(12, 12));
+        enemies.TrySpawnDrifter(new Vector2(15, 15));
         enemies.Update(LoopMaze, 0.01f);
         var initialDirection = enemies[0].Direction;
 
@@ -115,5 +116,44 @@ public sealed class EnemySystemTests
 
         Assert.IsTrue(enemies.HasContact(new Vector2(14, 12), 3));
         Assert.IsFalse(enemies.HasContact(new Vector2(40, 12), 3));
+    }
+
+    [TestMethod]
+    public void EveryLevelEntry_LeavesSpawnWithinOneSecondAndKeepsMoving()
+    {
+        for (var levelNumber = 1; levelNumber <= 3; levelNumber++)
+        {
+            var level = MazeHunter.Core.Levels.LevelCatalog.Get(levelNumber);
+            for (var entryIndex = 0; entryIndex < level.EnemyEntries.Count; entryIndex++)
+            {
+                foreach (var kind in Enum.GetValues<EnemyKind>())
+                {
+                    var enemies = new EnemySystem(seed: (uint)(100 + levelNumber + entryIndex));
+                    var spawn = MazeHunter.Core.Spawning.SpawnPlanner.FindEnemyEntry(level, entryIndex);
+                    enemies.TrySpawn(kind, spawn);
+
+                    for (var update = 0; update < 60; update++)
+                    {
+                        enemies.Update(level.Maze, 1f / 60f);
+                    }
+
+                    var afterOneSecond = enemies[0].Position;
+                    Assert.IsGreaterThan(
+                        4f,
+                        Vector2.DistanceSquared(spawn, afterOneSecond),
+                        $"Level {levelNumber}, entry {entryIndex}, {kind} did not leave spawn.");
+
+                    for (var update = 0; update < 120; update++)
+                    {
+                        enemies.Update(level.Maze, 1f / 60f);
+                    }
+
+                    Assert.AreNotEqual(
+                        afterOneSecond,
+                        enemies[0].Position,
+                        $"Level {levelNumber}, entry {entryIndex}, {kind} stopped navigating.");
+                }
+            }
+        }
     }
 }

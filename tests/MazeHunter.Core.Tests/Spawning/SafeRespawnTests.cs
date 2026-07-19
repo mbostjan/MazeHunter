@@ -19,7 +19,7 @@ public sealed class SafeRespawnTests
 
         var spawn = SpawnPlanner.FindSafestPlayerSpawn(maze, enemies);
 
-        Assert.IsTrue(maze.CanOccupy(spawn, Runner.CollisionRadius, Runner.TileSize));
+        Assert.IsTrue(maze.CanOccupy(spawn, 4, 10));
         Assert.IsGreaterThan(10000f, Vector2.DistanceSquared(spawn, new Vector2(16, 12)));
     }
 

@@ -14,11 +14,12 @@ engine or runtime dependency in the packaged release.
 ## Features
 
 - Complete solo and local cooperative survival loops
-- Fixed 60 Hz deterministic simulation and crisp 320x240 logical framebuffer
+- Fixed 60 Hz deterministic simulation and crisp 400x300 logical framebuffer
 - Responsive buffered corridor movement and simultaneous keyboard input
 - Drifter, Tracer, Vector, Veil, Surge, and rare Prism behaviors
-- Escalating cycles, individual scores, chains, lives, safe respawns, and game over
-- No co-op friendly fire; survivor progression and teammate cycle recovery
+- Three visibly distinct handcrafted mazes with rotating spawn configurations
+- Explicit escalating levels, animated transitions, scores, chains, lives, safe respawns, and game over
+- No co-op friendly fire; survivor progression and teammate level recovery
 - Versioned top-10 high scores and settings under `%LOCALAPPDATA%\NeonLabyrinth`
 - Six original programmatically synthesized sound cues
 - High-contrast and reduced-flash accessibility modes

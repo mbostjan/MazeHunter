@@ -1,13 +1,14 @@
 using System.Numerics;
 using MazeHunter.Core.Geometry;
 using MazeHunter.Core.Enemies;
+using MazeHunter.Core.Levels;
 using MazeHunter.Core.Mazes;
 
 namespace MazeHunter.Core.Spawning;
 
 public static class SpawnPlanner
 {
-    public static PlayerSpawns FindPlayerSpawns(Maze maze, int tileSize = 8)
+    public static PlayerSpawns FindPlayerSpawns(Maze maze, int tileSize = 10)
     {
         ArgumentNullException.ThrowIfNull(maze);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(tileSize);
@@ -18,7 +19,15 @@ public static class SpawnPlanner
         return new PlayerSpawns(ToCenter(playerOneTile, tileSize), ToCenter(playerTwoTile, tileSize));
     }
 
-    public static Vector2 FindEnemyEntry(Maze maze, int tileSize = 8)
+    public static PlayerSpawns FindPlayerSpawns(LevelDefinition level, int tileSize = 10)
+    {
+        ArgumentNullException.ThrowIfNull(level);
+        return new PlayerSpawns(
+            ToCenter(level.PlayerOneSpawn, tileSize),
+            ToCenter(level.PlayerTwoSpawn, tileSize));
+    }
+
+    public static Vector2 FindEnemyEntry(Maze maze, int tileSize = 10)
     {
         ArgumentNullException.ThrowIfNull(maze);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(tileSize);
@@ -26,10 +35,27 @@ public static class SpawnPlanner
         return ToCenter(tile, tileSize);
     }
 
+    public static Vector2 FindEnemyEntry(LevelDefinition level, int spawnIndex, int tileSize = 10)
+    {
+        ArgumentNullException.ThrowIfNull(level);
+        if (level.EnemyEntries.Count == 0)
+        {
+            throw new ArgumentException("A level requires at least one enemy entry.", nameof(level));
+        }
+
+        var tile = level.EnemyEntries[Math.Abs(spawnIndex) % level.EnemyEntries.Count];
+        if (!level.Maze.IsWalkable(tile.X, tile.Y))
+        {
+            throw new ArgumentException("Enemy entries must be walkable.", nameof(level));
+        }
+
+        return ToCenter(tile, tileSize);
+    }
+
     public static Vector2 FindSafestPlayerSpawn(
         Maze maze,
         EnemySystem enemies,
-        int tileSize = 8,
+        int tileSize = 10,
         Vector2? teammatePosition = null)
     {
         ArgumentNullException.ThrowIfNull(maze);

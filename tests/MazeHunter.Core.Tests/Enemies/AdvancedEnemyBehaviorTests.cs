@@ -24,27 +24,27 @@ public sealed class AdvancedEnemyBehaviorTests
     public void Tracer_UsesShortestRouteTowardPlayer()
     {
         var enemies = new EnemySystem(seed: 1);
-        enemies.TrySpawn(EnemyKind.Tracer, new Vector2(12, 28));
+        enemies.TrySpawn(EnemyKind.Tracer, new Vector2(15, 35));
 
         enemies.Update(
             CrossMaze,
             0.25f,
-            new EnemyContext(new Vector2(44, 28), Direction.Left));
+            new EnemyContext(new Vector2(55, 35), Direction.Left));
 
         Assert.AreEqual(Direction.Right, enemies[0].Direction);
-        Assert.IsGreaterThan(12f, enemies[0].Position.X);
+        Assert.IsGreaterThan(15f, enemies[0].Position.X);
     }
 
     [TestMethod]
     public void Vector_TargetsTilesAheadOfPlayer()
     {
         var enemies = new EnemySystem(seed: 1);
-        enemies.TrySpawn(EnemyKind.Vector, new Vector2(28, 12));
+        enemies.TrySpawn(EnemyKind.Vector, new Vector2(35, 15));
 
         enemies.Update(
             CrossMaze,
             0.1f,
-            new EnemyContext(new Vector2(28, 28), Direction.Down));
+            new EnemyContext(new Vector2(35, 35), Direction.Down));
 
         Assert.AreEqual(Direction.Down, enemies[0].Direction);
     }
@@ -53,14 +53,14 @@ public sealed class AdvancedEnemyBehaviorTests
     public void Veil_AvoidsExposedProjectileLane()
     {
         var projectiles = new ProjectileSystem();
-        projectiles.TryFire(1, new Vector2(12, 28), Direction.Right);
+        projectiles.TryFire(1, new Vector2(15, 35), Direction.Right);
         var enemies = new EnemySystem(seed: 1);
-        enemies.TrySpawn(EnemyKind.Veil, new Vector2(28, 28));
+        enemies.TrySpawn(EnemyKind.Veil, new Vector2(35, 35));
 
         enemies.Update(
             CrossMaze,
             0.05f,
-            new EnemyContext(new Vector2(44, 28), Direction.Left, projectiles));
+            new EnemyContext(new Vector2(55, 35), Direction.Left, projectiles));
 
         Assert.AreNotEqual(Direction.Right, enemies[0].Direction);
     }
@@ -69,17 +69,17 @@ public sealed class AdvancedEnemyBehaviorTests
     public void Prism_IncreasesDistanceFromPlayer()
     {
         var enemies = new EnemySystem(seed: 1);
-        enemies.TrySpawn(EnemyKind.Prism, new Vector2(28, 28));
+        enemies.TrySpawn(EnemyKind.Prism, new Vector2(35, 35));
 
         enemies.Update(
             CrossMaze,
             0.1f,
-            new EnemyContext(new Vector2(12, 28), Direction.Right));
+            new EnemyContext(new Vector2(15, 35), Direction.Right));
 
         Assert.AreNotEqual(Direction.Left, enemies[0].Direction);
         Assert.IsGreaterThan(
-            256f,
-            Vector2.DistanceSquared(enemies[0].Position, new Vector2(12, 28)));
+            400f,
+            Vector2.DistanceSquared(enemies[0].Position, new Vector2(15, 35)));
     }
 
     [TestMethod]
@@ -87,9 +87,9 @@ public sealed class AdvancedEnemyBehaviorTests
     {
         var tracer = new EnemySystem(seed: 1);
         var surge = new EnemySystem(seed: 1);
-        tracer.TrySpawn(EnemyKind.Tracer, new Vector2(12, 28));
-        surge.TrySpawn(EnemyKind.Surge, new Vector2(12, 28));
-        var context = new EnemyContext(new Vector2(44, 28), Direction.Left);
+        tracer.TrySpawn(EnemyKind.Tracer, new Vector2(15, 35));
+        surge.TrySpawn(EnemyKind.Surge, new Vector2(15, 35));
+        var context = new EnemyContext(new Vector2(55, 35), Direction.Left);
 
         tracer.Update(CrossMaze, 0.25f, context);
         surge.Update(CrossMaze, 0.25f, context);
@@ -101,15 +101,15 @@ public sealed class AdvancedEnemyBehaviorTests
     public void Hunter_TargetsNearestLiveRunnerInCooperativeContext()
     {
         var enemies = new EnemySystem(seed: 1);
-        enemies.TrySpawn(EnemyKind.Tracer, new Vector2(28, 28));
+        enemies.TrySpawn(EnemyKind.Tracer, new Vector2(35, 35));
 
         enemies.Update(
             CrossMaze,
             0.1f,
             new EnemyContext(
-                new Vector2(12, 28),
+                new Vector2(15, 35),
                 Direction.Right,
-                SecondPlayerPosition: new Vector2(36, 28),
+                SecondPlayerPosition: new Vector2(45, 35),
                 SecondPlayerFacing: Direction.Left));
 
         Assert.AreEqual(Direction.Right, enemies[0].Direction);

@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.1.0 - 2026-07-19
+
+### Added
+
+- Explicit named level progression with animated 1.5-second transition screens.
+- Relay Gardens and Prism Vault, joining Signal Crossing as three distinct
+  handcrafted 31-by-21 mazes with per-level player and enemy spawn layouts.
+- Configurable shared tile, actor-radius, and projectile-radius geometry.
+- Automated level catalog, custom geometry, and all-entry navigation tests.
+
+### Changed
+
+- Increased the logical framebuffer to 400-by-300, tiles to 10 pixels, collision
+  bodies to 4 pixels, and actor silhouettes to 9-10 pixels.
+- Replaced cycle terminology and `RoundDirector` with explicit levels and
+  `LevelDirector`.
+- Enemy travel now advances center-to-center and recovers safely from an
+  invalid position, preventing off-center corner lockups.
+
 ## 1.0.0 - 2026-07-19
 
 ### Added

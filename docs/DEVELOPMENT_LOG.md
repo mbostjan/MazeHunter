@@ -1,5 +1,20 @@
 # Development Log
 
+## 2026-07-19 — Milestone 13 / 1.1.0
+
+- Replaced cycle-facing progression with explicit named levels and a dedicated
+  `LevelDirector`.
+- Added Signal Crossing, Relay Gardens, and Prism Vault with distinct maze,
+  player spawn, and rotating enemy-entry configurations.
+- Added a frozen 1.5-second animated uplink transition before each new maze.
+- Expanded the logical framebuffer to 400-by-300, tiles to 10 pixels, actor
+  collision radii to 4 pixels, and silhouettes to 9-10 pixels.
+- Centralized tile and collision dimensions in injectable `GameGeometry`.
+- Fixed off-center enemy lockups by moving center-to-center, snapping arrivals,
+  and recovering invalid positions to the nearest walkable center.
+- Added catalog, geometry, transition, and all-entry sustained-navigation
+  regression tests; verified 69 Debug tests and a warning-free Release build.
+
 ## 2026-07-19 — Milestones 0 and 1
 
 - Confirmed Windows x64, .NET SDK 10.0.300, Windows Desktop 10 runtime, Visual

@@ -16,17 +16,18 @@ public sealed class EnemySystem
     public const float VeilSpeed = 30f;
     public const float SurgeSpeed = 46f;
     public const float PrismSpeed = 38f;
-    public const float CollisionRadius = 3f;
 
     private readonly Enemy[] _enemies;
     private readonly DeterministicRandom _random;
+    private readonly GameGeometry _geometry;
     private int _nextId = 1;
 
-    public EnemySystem(uint seed, int capacity = 32)
+    public EnemySystem(uint seed, int capacity = 32, GameGeometry? geometry = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(capacity, 1);
         _enemies = new Enemy[capacity];
         _random = new DeterministicRandom(seed);
+        _geometry = geometry ?? GameGeometry.Default;
         Seed = seed;
     }
 
@@ -35,6 +36,8 @@ public sealed class EnemySystem
     public int Capacity => _enemies.Length;
 
     public int ActiveCount { get; private set; }
+
+    public float CollisionRadius => _geometry.ActorRadius;
 
     public Enemy this[int index] => _enemies[index];
 
@@ -98,12 +101,24 @@ public sealed class EnemySystem
                     break;
                 }
 
-                var distance = MathF.Min(remaining, 1f);
+                var distanceToCenter = DistanceToNextCenter(enemy.Position, enemy.Direction);
+                var distance = MathF.Min(remaining, MathF.Min(1f, distanceToCenter));
                 var candidate = enemy.Position + (enemy.Direction.ToVector() * distance);
-                if (!maze.CanOccupy(candidate, CollisionRadius, Runner.TileSize))
+                if (!maze.CanOccupy(candidate, CollisionRadius, _geometry.TileSize))
                 {
-                    enemy = enemy with { Direction = Direction.None, LastDecisionTile = new GridPoint(-1, -1) };
-                    break;
+                    var recovered = SnapToNearestWalkableCenter(maze, enemy.Position);
+                    enemy = enemy with
+                    {
+                        Position = recovered,
+                        Direction = Direction.None,
+                        LastDecisionTile = new GridPoint(-1, -1)
+                    };
+                    continue;
+                }
+
+                if (MathF.Abs(distance - distanceToCenter) < 0.001f)
+                {
+                    candidate = SnapToNearestCenter(candidate);
                 }
 
                 enemy = enemy with
@@ -444,7 +459,7 @@ public sealed class EnemySystem
         return int.MaxValue;
     }
 
-    private static bool IsInProjectileLane(Maze maze, GridPoint tile, ProjectileSystem projectiles)
+    private bool IsInProjectileLane(Maze maze, GridPoint tile, ProjectileSystem projectiles)
     {
         for (var i = 0; i < projectiles.Capacity; i++)
         {
@@ -492,7 +507,7 @@ public sealed class EnemySystem
         _ => false
     };
 
-    private static GridPoint GetPredictionTile(Maze maze, Vector2 playerPosition, Direction facing)
+    private GridPoint GetPredictionTile(Maze maze, Vector2 playerPosition, Direction facing)
     {
         var playerTile = ToTile(playerPosition);
         var offset = facing.ToVector();
@@ -510,8 +525,8 @@ public sealed class EnemySystem
         return playerTile;
     }
 
-    private static GridPoint ToTile(Vector2 position) =>
-        new((int)MathF.Floor(position.X / Runner.TileSize), (int)MathF.Floor(position.Y / Runner.TileSize));
+    private GridPoint ToTile(Vector2 position) =>
+        new((int)MathF.Floor(position.X / _geometry.TileSize), (int)MathF.Floor(position.Y / _geometry.TileSize));
 
     private static (Vector2 Position, Direction Facing) GetClosestTarget(
         Vector2 enemyPosition,
@@ -550,14 +565,55 @@ public sealed class EnemySystem
         return false;
     }
 
-    private static GridPoint? GetCenteredTile(Vector2 position)
+    private GridPoint? GetCenteredTile(Vector2 position)
     {
-        var tileX = (int)MathF.Floor(position.X / Runner.TileSize);
-        var tileY = (int)MathF.Floor(position.Y / Runner.TileSize);
-        var centerX = (tileX * Runner.TileSize) + (Runner.TileSize / 2f);
-        var centerY = (tileY * Runner.TileSize) + (Runner.TileSize / 2f);
+        var tileX = (int)MathF.Floor(position.X / _geometry.TileSize);
+        var tileY = (int)MathF.Floor(position.Y / _geometry.TileSize);
+        var centerX = (tileX * _geometry.TileSize) + _geometry.TileCenterOffset;
+        var centerY = (tileY * _geometry.TileSize) + _geometry.TileCenterOffset;
         return MathF.Abs(position.X - centerX) < 0.001f && MathF.Abs(position.Y - centerY) < 0.001f
             ? new GridPoint(tileX, tileY)
             : null;
+    }
+
+    private float DistanceToNextCenter(Vector2 position, Direction direction)
+    {
+        var coordinate = direction.IsVertical() ? position.Y : position.X;
+        var tileSize = _geometry.TileSize;
+        var center = (MathF.Floor(coordinate / tileSize) * tileSize) + _geometry.TileCenterOffset;
+        if (direction is Direction.Right or Direction.Down)
+        {
+            return center > coordinate + 0.001f ? center - coordinate : center + tileSize - coordinate;
+        }
+
+        return center < coordinate - 0.001f ? coordinate - center : coordinate - (center - tileSize);
+    }
+
+    private Vector2 SnapToNearestCenter(Vector2 position)
+    {
+        var tileSize = _geometry.TileSize;
+        return new Vector2(
+            (MathF.Floor(position.X / tileSize) * tileSize) + _geometry.TileCenterOffset,
+            (MathF.Floor(position.Y / tileSize) * tileSize) + _geometry.TileCenterOffset);
+    }
+
+    private Vector2 SnapToNearestWalkableCenter(Maze maze, Vector2 position)
+    {
+        var snapped = SnapToNearestCenter(position);
+        if (maze.CanOccupy(snapped, CollisionRadius, _geometry.TileSize))
+        {
+            return snapped;
+        }
+
+        var tile = maze.WalkableTiles().MinBy(candidate =>
+        {
+            var center = new Vector2(
+                (candidate.X * _geometry.TileSize) + _geometry.TileCenterOffset,
+                (candidate.Y * _geometry.TileSize) + _geometry.TileCenterOffset);
+            return Vector2.DistanceSquared(position, center);
+        });
+        return new Vector2(
+            (tile.X * _geometry.TileSize) + _geometry.TileCenterOffset,
+            (tile.Y * _geometry.TileSize) + _geometry.TileCenterOffset);
     }
 }

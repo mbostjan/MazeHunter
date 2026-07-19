@@ -2,6 +2,7 @@ namespace MazeHunter.Core.Mazes;
 
 public static class MazeCatalog
 {
+    // Kept as the canonical first layout for compatibility with existing callers.
     public static Maze CreateSignalCrossing() => Maze.FromAscii(
     [
         "###############################",
@@ -27,4 +28,3 @@ public static class MazeCatalog
         "###############################"
     ]);
 }
-

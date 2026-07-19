@@ -1,4 +1,5 @@
 using System.Numerics;
+using MazeHunter.Core.Geometry;
 using MazeHunter.Core.Mazes;
 
 namespace MazeHunter.Core.Actors;
@@ -6,17 +7,21 @@ namespace MazeHunter.Core.Actors;
 /// <summary>Deterministic axis-aligned player movement independent of presentation.</summary>
 public sealed class Runner
 {
-    public const float CollisionRadius = 3f;
     public const float MovementSpeed = 48f;
-    public const int TileSize = 8;
 
+    private readonly GameGeometry _geometry;
     private Direction _bufferedDirection;
     private float _animationDistance;
 
-    public Runner(Vector2 spawnPosition)
+    public Runner(Vector2 spawnPosition, GameGeometry? geometry = null)
     {
         Position = spawnPosition;
+        _geometry = geometry ?? GameGeometry.Default;
     }
+
+    public float CollisionRadius => _geometry.ActorRadius;
+
+    public int TileSize => _geometry.TileSize;
 
     public Vector2 Position { get; private set; }
 

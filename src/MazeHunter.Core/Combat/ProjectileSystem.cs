@@ -1,5 +1,6 @@
 using System.Numerics;
 using MazeHunter.Core.Actors;
+using MazeHunter.Core.Geometry;
 using MazeHunter.Core.Mazes;
 
 namespace MazeHunter.Core.Combat;
@@ -8,20 +9,23 @@ namespace MazeHunter.Core.Combat;
 public sealed class ProjectileSystem
 {
     public const float Speed = 112f;
-    public const float Radius = 1f;
     public const float MaximumLifetimeSeconds = 2.5f;
 
     private readonly Projectile[] _projectiles;
+    private readonly GameGeometry _geometry;
 
-    public ProjectileSystem(int capacity = 8)
+    public ProjectileSystem(int capacity = 8, GameGeometry? geometry = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(capacity, 1);
         _projectiles = new Projectile[capacity];
+        _geometry = geometry ?? GameGeometry.Default;
     }
 
     public int Capacity => _projectiles.Length;
 
     public int ActiveCount { get; private set; }
+
+    public float Radius => _geometry.ProjectileRadius;
 
     public Projectile this[int index] => _projectiles[index];
 
@@ -77,7 +81,7 @@ public sealed class ProjectileSystem
             {
                 var distance = MathF.Min(remaining, 1f);
                 var candidate = position + (projectile.Direction.ToVector() * distance);
-                if (!maze.CanOccupy(candidate, Radius, Runner.TileSize))
+                if (!maze.CanOccupy(candidate, Radius, _geometry.TileSize))
                 {
                     collided = true;
                     break;
@@ -144,4 +148,3 @@ public sealed class ProjectileSystem
         ActiveCount--;
     }
 }
-

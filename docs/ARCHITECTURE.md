@@ -11,14 +11,21 @@ The solution separates deterministic rules (`MazeHunter.Core`) from Windows
 presentation (`MazeHunter.Game`). Tests depend only on Core, so gameplay rules
 can be verified without opening a window.
 
+Milestone 13 expands the logical surface to 400-by-300. `GameGeometry` injects
+the default 10-pixel tile size, 4-pixel actor radius, and 1.25-pixel projectile
+radius into runners, enemies, projectiles, spawning, collision, and rendering.
+
 ## Modules
 
 - **Bootstrap:** `Program` configures WinForms and top-level error handling.
 - **Loop/timing:** `FixedStepClock` accumulates wall time and emits 60 Hz steps.
-- **Presentation:** `GameForm` owns a 320×240 bitmap and scales it with nearest
+- **Presentation:** `GameForm` owns a 400-by-300 bitmap and scales it with nearest
   neighbor interpolation into a letterboxed resizable window.
 - **Maze/collision:** immutable validated ASCII-authored tile grids own static
   collision queries; out-of-bounds coordinates are always solid.
+- **Levels:** `LevelCatalog` owns named handcrafted maze, player-spawn, and
+  enemy-entry definitions. `LevelDirector` owns quotas, composition, spawn
+  timing, active caps, the 1.5-second transition, and increasing level identity.
 - **Input:** the WinForms adapter records held and newly pressed keys separately,
   supports simultaneous presses, and clears state whenever focus is lost.
 - **Actors:** `Runner` owns deterministic axis-aligned movement, direction
@@ -31,32 +38,31 @@ can be verified without opening a window.
 - **Audio:** original PCM waveforms are synthesized and preloaded at startup;
   Windows asynchronous playback never waits in the simulation loop.
 - **Effects:** a fixed-capacity presentation-only pool renders short geometric
-  bursts for eliminations, damage, and cycle completion without gameplay state.
+  bursts for eliminations, damage, and level completion without gameplay state.
   Reduced-flash mode shortens and dims these effects.
 - **Enemies:** fixed-capacity entity storage uses seeded gameplay randomness.
-  Drifters decide only at tile centers, prefer forward travel, reject avoidable
-  reversals, and collide through the same maze queries as runners.
+  Enemies move exactly center-to-center, choose again on arrival, reject
+  avoidable reversals, and recover invalid positions to the nearest walkable
+  center. They collide through the same configurable queries as runners.
 - **Navigation profiles:** stack-backed breadth-first distance searches guide
   direct and predictive hunters without heap allocation. Veil checks clear
   projectile lanes before path selection; Prism maximizes path distance.
-- **Rounds:** `RoundDirector` owns quotas, type composition, active caps,
-  distance-gated spawn timing, completion delay, and escalating cycle state.
 - **Scoring:** profile values feed a 2.5-second chain with a capped 4×
-  multiplier; cycle and surviving-life bonuses are separate deterministic rules.
+  multiplier; level and surviving-life bonuses are separate deterministic rules.
 - **Lives/respawn:** `PlayerLife` owns damage eligibility, three lives,
   1.25-second absence, two-second protection, and game over. The spawn planner
   maximizes squared distance from every active enemy before return.
 - **Flow state:** `GameFlow` is the authoritative title/instructions/playing/
   paused/game-over state machine. Only `Playing` permits simulation advancement;
   presentation and input adapters cannot invent transitions.
-- **Local co-op:** two runner/life/score channels share enemies, rounds, and the
+- **Local co-op:** two runner/life/score channels share enemies, levels, and the
   fixed projectile pool. Owner IDs route points, projectiles never query runner
   hits, hunters choose the nearest live runner, and `LocalTeamRules` defines
-  survivor continuation, friendly-fire policy, and cycle recovery.
+  survivor continuation, friendly-fire policy, and level recovery.
 - **Persistence/configuration:** `PlayerProfile` and `ProfileJson` own versioned
   settings, callsigns, and leaderboard rules; `ProfileStore` owns per-user I/O.
 - **Diagnostics/logging:** F3 samples presentation FPS, update work, allocation
-  rate, entities, player state, round, seed, and flow state. A bounded per-user
+  rate, entities, player state, level, seed, and flow state. A bounded per-user
   log records lifecycle events and recoverable storage failures.
 
 ## Ownership and timing
@@ -67,9 +73,9 @@ advances only in fixed 1/60-second increments. Wall-clock gaps are capped at
 250 ms to avoid a spiral after debugging or window stalls. Focus loss suspends
 simulation and clears accumulated time.
 
-Logical coordinates use 320×240 pixels. Maze geometry uses 8-pixel tiles,
-with actor positions represented in logical pixels. Physical window size never
-changes gameplay coordinates.
+Logical coordinates use 400-by-300 pixels. Maze geometry defaults to 10-pixel
+tiles with actor positions represented in logical pixels. Physical window size
+never changes gameplay coordinates.
 
 ## Performance target
 

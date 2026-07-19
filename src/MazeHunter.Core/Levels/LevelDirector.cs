@@ -1,12 +1,11 @@
 using System.Numerics;
 using MazeHunter.Core.Enemies;
-using MazeHunter.Core.Mazes;
 using MazeHunter.Core.Spawning;
 
-namespace MazeHunter.Core.Rounds;
+namespace MazeHunter.Core.Levels;
 
-/// <summary>Deterministic round composition, fair spawning, and progression.</summary>
-public sealed class RoundDirector
+/// <summary>Deterministic level composition, fair spawning, and explicit progression.</summary>
+public sealed class LevelDirector
 {
     private const float MinimumPlayerSpawnDistance = 48f;
     private float _spawnTimer;
@@ -14,54 +13,56 @@ public sealed class RoundDirector
     private int _spawned;
     private int _defeated;
 
-    public int RoundNumber { get; private set; } = 1;
+    public int LevelNumber { get; private set; } = 1;
 
-    public int RequiredDefeats => Math.Min(6 + ((RoundNumber - 1) * 2), 24);
+    public LevelDefinition CurrentLevel => LevelCatalog.Get(LevelNumber);
 
-    public int DefeatedThisRound => _defeated;
+    public int RequiredDefeats => Math.Min(6 + ((LevelNumber - 1) * 2), 24);
 
-    public int RemainingThisRound => RequiredDefeats - _defeated;
+    public int DefeatedThisLevel => _defeated;
 
-    public bool IsCompleting { get; private set; }
+    public int RemainingThisLevel => RequiredDefeats - _defeated;
 
-    public bool RoundAdvancedThisUpdate { get; private set; }
+    public bool IsTransitioning { get; private set; }
+
+    public float TransitionProgress => IsTransitioning ? Math.Clamp(_completionTimer / 1.5f, 0, 1) : 0;
+
+    public bool LevelAdvancedThisUpdate { get; private set; }
 
     public void Update(
-        Maze maze,
         EnemySystem enemies,
         Vector2 playerPosition,
         float deltaSeconds,
         Vector2? secondPlayerPosition = null)
     {
-        ArgumentNullException.ThrowIfNull(maze);
         ArgumentNullException.ThrowIfNull(enemies);
         if (!float.IsFinite(deltaSeconds) || deltaSeconds < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(deltaSeconds));
         }
 
-        RoundAdvancedThisUpdate = false;
+        LevelAdvancedThisUpdate = false;
         if (_spawned >= RequiredDefeats && enemies.ActiveCount == 0)
         {
-            IsCompleting = true;
+            IsTransitioning = true;
             _completionTimer += deltaSeconds;
             if (_completionTimer >= 1.5f)
             {
-                AdvanceRound();
+                AdvanceLevel();
             }
 
             return;
         }
 
-        IsCompleting = false;
+        IsTransitioning = false;
         _spawnTimer -= deltaSeconds;
-        var activeLimit = Math.Min(2 + (RoundNumber / 2), 6);
+        var activeLimit = Math.Min(2 + (LevelNumber / 2), 6);
         if (_spawned >= RequiredDefeats || enemies.ActiveCount >= activeLimit || _spawnTimer > 0)
         {
             return;
         }
 
-        var entry = SpawnPlanner.FindEnemyEntry(maze);
+        var entry = SpawnPlanner.FindEnemyEntry(CurrentLevel, _spawned);
         if (Vector2.DistanceSquared(entry, playerPosition) <
                 MinimumPlayerSpawnDistance * MinimumPlayerSpawnDistance ||
             (secondPlayerPosition is { } second &&
@@ -72,10 +73,10 @@ public sealed class RoundDirector
             return;
         }
 
-        if (enemies.TrySpawn(ChooseKind(RoundNumber, _spawned), entry))
+        if (enemies.TrySpawn(ChooseKind(LevelNumber, _spawned), entry))
         {
             _spawned++;
-            _spawnTimer = MathF.Max(0.35f, 1.2f - (RoundNumber * 0.06f));
+            _spawnTimer = MathF.Max(0.35f, 1.2f - (LevelNumber * 0.06f));
         }
     }
 
@@ -89,23 +90,23 @@ public sealed class RoundDirector
 
     public void Reset()
     {
-        RoundNumber = 1;
+        LevelNumber = 1;
         _spawned = 0;
         _defeated = 0;
         _spawnTimer = 0;
         _completionTimer = 0;
-        IsCompleting = false;
-        RoundAdvancedThisUpdate = false;
+        IsTransitioning = false;
+        LevelAdvancedThisUpdate = false;
     }
 
-    private static EnemyKind ChooseKind(int round, int spawnIndex)
+    private static EnemyKind ChooseKind(int level, int spawnIndex)
     {
         if ((spawnIndex + 1) % 7 == 0)
         {
             return EnemyKind.Prism;
         }
 
-        var availableProfiles = Math.Min(round + 1, 5);
+        var availableProfiles = Math.Min(level + 1, 5);
         return (spawnIndex % availableProfiles) switch
         {
             1 => EnemyKind.Tracer,
@@ -116,14 +117,14 @@ public sealed class RoundDirector
         };
     }
 
-    private void AdvanceRound()
+    private void AdvanceLevel()
     {
-        RoundAdvancedThisUpdate = true;
-        RoundNumber++;
+        LevelAdvancedThisUpdate = true;
+        LevelNumber++;
         _spawned = 0;
         _defeated = 0;
         _spawnTimer = 0.75f;
         _completionTimer = 0;
-        IsCompleting = false;
+        IsTransitioning = false;
     }
 }

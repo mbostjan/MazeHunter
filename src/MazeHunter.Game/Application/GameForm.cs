@@ -5,10 +5,11 @@ using System.Numerics;
 using MazeHunter.Core.Actors;
 using MazeHunter.Core.Combat;
 using MazeHunter.Core.Enemies;
+using MazeHunter.Core.Geometry;
+using MazeHunter.Core.Levels;
 using MazeHunter.Core.Mazes;
 using MazeHunter.Core.Persistence;
 using MazeHunter.Core.Players;
-using MazeHunter.Core.Rounds;
 using MazeHunter.Core.Scoring;
 using MazeHunter.Core.Spawning;
 using MazeHunter.Core.State;
@@ -23,8 +24,9 @@ namespace MazeHunter.Game.Application;
 
 internal sealed class GameForm : Form
 {
-    private const int LogicalWidth = 320;
-    private const int LogicalHeight = 240;
+    private const int LogicalWidth = 400;
+    private const int LogicalHeight = 300;
+    private const int MazeOffsetY = 38;
 
     private readonly Bitmap _framebuffer = new(LogicalWidth, LogicalHeight);
     private Bitmap _mazeLayer;
@@ -32,12 +34,13 @@ internal sealed class GameForm : Form
     private readonly FixedStepClock _clock = new();
     private readonly System.Windows.Forms.Timer _pump = new() { Interval = 8 };
     private readonly KeyboardState _keyboard = new();
-    private readonly Maze _maze = MazeCatalog.CreateSignalCrossing();
+    private readonly GameGeometry _geometry = GameGeometry.Default;
+    private Maze _maze;
     private readonly Runner _runner;
     private readonly Runner _runnerTwo;
-    private readonly ProjectileSystem _projectiles = new();
-    private readonly EnemySystem _enemies = new(seed: 0x4E454F4E);
-    private readonly RoundDirector _rounds = new();
+    private readonly ProjectileSystem _projectiles;
+    private readonly EnemySystem _enemies;
+    private readonly LevelDirector _levels = new();
     private readonly PlayerLife _playerLife = new();
     private readonly PlayerLife _playerTwoLife = new();
     private readonly ScoreSystem _score = new();
@@ -64,9 +67,12 @@ internal sealed class GameForm : Form
 
     public GameForm()
     {
-        var spawns = SpawnPlanner.FindPlayerSpawns(_maze);
-        _runner = new Runner(spawns.PlayerOne);
-        _runnerTwo = new Runner(spawns.PlayerTwo);
+        _maze = _levels.CurrentLevel.Maze;
+        var spawns = SpawnPlanner.FindPlayerSpawns(_levels.CurrentLevel, _geometry.TileSize);
+        _runner = new Runner(spawns.PlayerOne, _geometry);
+        _runnerTwo = new Runner(spawns.PlayerTwo, _geometry);
+        _projectiles = new ProjectileSystem(geometry: _geometry);
+        _enemies = new EnemySystem(seed: 0x4E454F4E, geometry: _geometry);
         _profile = _profileStore.Load();
         _log = new DiagnosticLog(Path.GetDirectoryName(_profileStore.ProfilePath) ?? ".");
         _log.Write($"Startup .NET {Environment.Version} mode={_profile.Settings.LastMode}");
@@ -74,8 +80,8 @@ internal sealed class GameForm : Form
         _audio.SetMuted(_profile.Settings.Muted);
         _mazeLayer = CreateMazeLayer();
         Text = "Neon Labyrinth";
-        ClientSize = new Size(960, 720);
-        MinimumSize = new Size(640, 520);
+        ClientSize = new Size(1200, 900);
+        MinimumSize = new Size(800, 650);
         StartPosition = FormStartPosition.CenterScreen;
         BackColor = Color.FromArgb(5, 7, 15);
         KeyPreview = true;
@@ -219,6 +225,18 @@ internal sealed class GameForm : Form
             _playerTwoLife.CompleteRespawn();
         }
 
+        if (_levels.IsTransitioning)
+        {
+            _levels.Update(
+                _enemies,
+                _runner.Position,
+                deltaSeconds,
+                IsCooperative ? _runnerTwo.Position : null);
+            HandleLevelAdvance();
+            _keyboard.EndUpdate();
+            return;
+        }
+
         if (_playerLife.IsAlive)
         {
             _runner.Update(_maze, GetPlayerOneDirection(), deltaSeconds);
@@ -244,27 +262,8 @@ internal sealed class GameForm : Form
         Vector2? secondTarget = IsCooperative && _playerLife.IsAlive && _playerTwoLife.IsAlive
             ? _runnerTwo.Position
             : null;
-        _rounds.Update(_maze, _enemies, primaryRunner.Position, deltaSeconds, secondTarget);
-        if (_rounds.RoundAdvancedThisUpdate)
-        {
-            _audio.PlayRoundComplete();
-            _effects.Spawn(
-                VisualEffectKind.RoundClear,
-                new Vector2((_maze.Width * Runner.TileSize) / 2f, (_maze.Height * Runner.TileSize) / 2f),
-                _profile.Settings.ReducedFlashes);
-            _score.RecordRoundCompleted(_rounds.RoundNumber - 1, _playerLife.Lives);
-            if (IsCooperative)
-            {
-                _scoreTwo.RecordRoundCompleted(_rounds.RoundNumber - 1, _playerTwoLife.Lives);
-                if (!_playerLife.IsGameOver && !_playerTwoLife.IsGameOver)
-                {
-                    _score.RecordTeamSurvivalBonus(_rounds.RoundNumber - 1);
-                    _scoreTwo.RecordTeamSurvivalBonus(_rounds.RoundNumber - 1);
-                }
-
-                RecoverEliminatedPartner();
-            }
-        }
+        _levels.Update(_enemies, primaryRunner.Position, deltaSeconds, secondTarget);
+        HandleLevelAdvance();
 
         var primaryFacing = ReferenceEquals(primaryRunner, _runner) ? _runner.Facing : _runnerTwo.Facing;
         _enemies.Update(
@@ -287,7 +286,7 @@ internal sealed class GameForm : Form
                 VisualEffectKind.EnemyBurst,
                 destroyedPosition,
                 _profile.Settings.ReducedFlashes);
-            _rounds.NotifyEnemyDefeated();
+            _levels.NotifyEnemyDefeated();
             if (ownerId == 2 && IsCooperative)
             {
                 _scoreTwo.RecordEnemyDestroyed(destroyedKind);
@@ -299,7 +298,7 @@ internal sealed class GameForm : Form
         }
 
         if (_playerLife.IsAlive &&
-            _enemies.HasContact(_runner.Position, Runner.CollisionRadius) &&
+            _enemies.HasContact(_runner.Position, _runner.CollisionRadius) &&
             _playerLife.TryDamage())
         {
             _audio.PlayPlayerDamage();
@@ -313,7 +312,7 @@ internal sealed class GameForm : Form
 
         if (IsCooperative &&
             _playerTwoLife.IsAlive &&
-            _enemies.HasContact(_runnerTwo.Position, Runner.CollisionRadius) &&
+            _enemies.HasContact(_runnerTwo.Position, _runnerTwo.CollisionRadius) &&
             _playerTwoLife.TryDamage())
         {
             _audio.PlayPlayerDamage();
@@ -362,9 +361,9 @@ internal sealed class GameForm : Form
             return;
         }
 
-        var header = _rounds.IsCompleting
-            ? $"CYCLE {_rounds.RoundNumber} CLEARED"
-            : $"CYCLE {_rounds.RoundNumber:00} // SIGNALS {_rounds.RemainingThisRound:00}";
+        var header = _levels.IsTransitioning
+            ? $"LEVEL {_levels.LevelNumber} CLEARED"
+            : $"LEVEL {_levels.LevelNumber:00} {_levels.CurrentLevel.Name.ToUpperInvariant()} // SIGNALS {_levels.RemainingThisLevel:00}";
         DrawCentered(graphics, header, titleFont, glowBrush, 8);
         RenderMaze(graphics);
         RenderProjectiles(graphics);
@@ -393,25 +392,30 @@ internal sealed class GameForm : Form
                 GetPlayerHud("P1", _score, _playerLife),
                 textFont,
                 accentBrush,
-                220);
+                270);
             DrawCentered(
                 graphics,
                 GetPlayerHud("P2", _scoreTwo, _playerTwoLife),
                 textFont,
                 dimBrush,
-                231);
+                286);
         }
         else
         {
             var status = GetPlayerHud("P1", _score, _playerLife);
-            DrawCentered(graphics, status, textFont, accentBrush, 222);
+            DrawCentered(graphics, status, textFont, accentBrush, 272);
             var footer = _audio.Muted ? "SPACE FIRE // M AUDIO ON" : "SPACE FIRE // M MUTE";
-            DrawCentered(graphics, footer, textFont, dimBrush, 232);
+            DrawCentered(graphics, footer, textFont, dimBrush, 286);
         }
 
         if (_flow.Screen == GameScreen.Paused)
         {
             RenderPaused(graphics);
+        }
+
+        if (_levels.IsTransitioning)
+        {
+            RenderLevelTransition(graphics);
         }
         else if (_flow.Screen == GameScreen.GameOver)
         {
@@ -498,9 +502,9 @@ internal sealed class GameForm : Form
 
     private void RenderEnemies(Graphics graphics)
     {
-        const int tileSize = Runner.TileSize;
+        var tileSize = _geometry.TileSize;
         var offsetX = (LogicalWidth - (_maze.Width * tileSize)) / 2;
-        const int offsetY = 32;
+        const int offsetY = MazeOffsetY;
         var shellBrush = _render.EnemyShellBrush;
         var eyeBrush = _render.EnemyEyeBrush;
         var backgroundBrush = _render.BackgroundBrush;
@@ -527,24 +531,24 @@ internal sealed class GameForm : Form
 
             if (enemy.Kind == EnemyKind.Prism)
             {
-                graphics.FillEllipse(shellBrush, x - 4, y - 4, 8, 8);
+                graphics.FillEllipse(shellBrush, x - 5, y - 5, 10, 10);
             }
             else
             {
-                graphics.FillRectangle(shellBrush, x - 3, y - 3, 7, 7);
+                graphics.FillRectangle(shellBrush, x - 4, y - 4, 9, 9);
             }
 
-            graphics.FillRectangle(backgroundBrush, x - 1, y - 1, 3, 3);
-            var eyeOffset = enemy.AnimationFrame == 0 ? -2 : 2;
-            graphics.FillRectangle(eyeBrush, x + eyeOffset, y, 1, 1);
+            graphics.FillRectangle(backgroundBrush, x - 2, y - 2, 4, 4);
+            var eyeOffset = enemy.AnimationFrame == 0 ? -3 : 3;
+            graphics.FillRectangle(eyeBrush, x + eyeOffset, y - 1, 2, 2);
         }
     }
 
     private void RenderProjectiles(Graphics graphics)
     {
-        const int tileSize = Runner.TileSize;
+        var tileSize = _geometry.TileSize;
         var offsetX = (LogicalWidth - (_maze.Width * tileSize)) / 2;
-        const int offsetY = 32;
+        const int offsetY = MazeOffsetY;
         var pulseBrush = _render.PulseBrush;
         var coreBrush = _render.CoreBrush;
 
@@ -582,24 +586,24 @@ internal sealed class GameForm : Form
             return;
         }
 
-        const int tileSize = Runner.TileSize;
+        var tileSize = _geometry.TileSize;
         var offsetX = (LogicalWidth - (_maze.Width * tileSize)) / 2;
-        const int offsetY = 32;
+        const int offsetY = MazeOffsetY;
         var x = offsetX + (int)MathF.Round(runner.Position.X);
         var y = offsetY + (int)MathF.Round(runner.Position.Y);
 
         var shadowBrush = _render.RunnerShadowBrush;
         var runnerBrush = _render.RunnerBrush;
         runnerBrush.Color = color;
-        graphics.FillRectangle(shadowBrush, x - 4, y - 4, 8, 8);
+        graphics.FillRectangle(shadowBrush, x - 5, y - 5, 10, 10);
 
         var arrow = _render.RunnerTriangle;
         (arrow[0], arrow[1], arrow[2]) = runner.Facing switch
         {
-            Direction.Up => (new Point(x, y - 4), new Point(x - 3, y + 3), new Point(x + 3, y + 3)),
-            Direction.Down => (new Point(x, y + 4), new Point(x - 3, y - 3), new Point(x + 3, y - 3)),
-            Direction.Left => (new Point(x - 4, y), new Point(x + 3, y - 3), new Point(x + 3, y + 3)),
-            _ => (new Point(x + 4, y), new Point(x - 3, y - 3), new Point(x - 3, y + 3))
+            Direction.Up => (new Point(x, y - 5), new Point(x - 4, y + 4), new Point(x + 4, y + 4)),
+            Direction.Down => (new Point(x, y + 5), new Point(x - 4, y - 4), new Point(x + 4, y - 4)),
+            Direction.Left => (new Point(x - 5, y), new Point(x + 4, y - 4), new Point(x + 4, y + 4)),
+            _ => (new Point(x + 5, y), new Point(x - 4, y - 4), new Point(x - 4, y + 4))
         };
         graphics.FillPolygon(runnerBrush, arrow);
 
@@ -644,13 +648,13 @@ internal sealed class GameForm : Form
     private void RenderMaze(Graphics graphics)
     {
         var offsetX = (LogicalWidth - _mazeLayer.Width) / 2;
-        const int offsetY = 32;
+        const int offsetY = MazeOffsetY;
         graphics.DrawImageUnscaled(_mazeLayer, offsetX, offsetY);
     }
 
     private Bitmap CreateMazeLayer()
     {
-        const int tileSize = Runner.TileSize;
+        var tileSize = _geometry.TileSize;
         var layer = new Bitmap(_maze.Width * tileSize, _maze.Height * tileSize);
         using var graphics = Graphics.FromImage(layer);
         var highContrast = _profile.Settings.HighContrast;
@@ -688,11 +692,77 @@ internal sealed class GameForm : Form
         _mazeLayer = replacement;
     }
 
+    private void LoadCurrentLevel()
+    {
+        _maze = _levels.CurrentLevel.Maze;
+        _enemies.Clear();
+        _projectiles.Clear();
+        RebuildMazeLayer();
+        var spawns = SpawnPlanner.FindPlayerSpawns(_levels.CurrentLevel, _geometry.TileSize);
+        if (_playerLife.IsAlive)
+        {
+            _runner.Respawn(spawns.PlayerOne);
+        }
+
+        if (IsCooperative && _playerTwoLife.IsAlive)
+        {
+            _runnerTwo.Respawn(spawns.PlayerTwo);
+        }
+    }
+
+    private void HandleLevelAdvance()
+    {
+        if (!_levels.LevelAdvancedThisUpdate)
+        {
+            return;
+        }
+
+        var completedLevel = _levels.LevelNumber - 1;
+        _audio.PlayRoundComplete();
+        _score.RecordRoundCompleted(completedLevel, _playerLife.Lives);
+        if (IsCooperative)
+        {
+            _scoreTwo.RecordRoundCompleted(completedLevel, _playerTwoLife.Lives);
+            if (!_playerLife.IsGameOver && !_playerTwoLife.IsGameOver)
+            {
+                _score.RecordTeamSurvivalBonus(completedLevel);
+                _scoreTwo.RecordTeamSurvivalBonus(completedLevel);
+            }
+
+            RecoverEliminatedPartner();
+        }
+
+        LoadCurrentLevel();
+        _effects.Spawn(
+            VisualEffectKind.RoundClear,
+            new Vector2((_maze.Width * _geometry.TileSize) / 2f, (_maze.Height * _geometry.TileSize) / 2f),
+            _profile.Settings.ReducedFlashes);
+    }
+
+    private void RenderLevelTransition(Graphics graphics)
+    {
+        var progress = _levels.TransitionProgress;
+        var bandWidth = 110 + (int)(progress * 170);
+        var left = (LogicalWidth - bandWidth) / 2;
+        using var overlay = new SolidBrush(Color.FromArgb(225, 5, 7, 15));
+        using var border = new Pen(Color.FromArgb(255, 55, 238, 210), 2);
+        using var title = new Font(FontFamily.GenericMonospace, 21, FontStyle.Bold, GraphicsUnit.Pixel);
+        graphics.FillRectangle(overlay, left, 108, bandWidth, 76);
+        graphics.DrawRectangle(border, left, 108, bandWidth - 1, 75);
+        DrawCentered(graphics, $"LEVEL {_levels.LevelNumber} COMPLETE", title, _render.GlowBrush, 121);
+        DrawCentered(
+            graphics,
+            $"UPLINKING {_levels.LevelNumber + 1}: {LevelCatalog.Get(_levels.LevelNumber + 1).Name.ToUpperInvariant()}",
+            _render.TextFont,
+            _render.AccentBrush,
+            157);
+    }
+
     private void RenderEffects(Graphics graphics)
     {
-        const int tileSize = Runner.TileSize;
+        var tileSize = _geometry.TileSize;
         var offsetX = (LogicalWidth - (_maze.Width * tileSize)) / 2;
-        const int offsetY = 32;
+        const int offsetY = MazeOffsetY;
         var pen = _render.EffectPen;
         for (var i = 0; i < _effects.Capacity; i++)
         {
@@ -857,12 +927,14 @@ internal sealed class GameForm : Form
         _enemies.Clear();
         _projectiles.Clear();
         _effects.Clear();
-        _rounds.Reset();
+        _levels.Reset();
         _score.Reset();
         _scoreTwo.Reset();
         _playerLife.Reset();
         _playerTwoLife.Reset();
-        var spawns = SpawnPlanner.FindPlayerSpawns(_maze);
+        _maze = _levels.CurrentLevel.Maze;
+        RebuildMazeLayer();
+        var spawns = SpawnPlanner.FindPlayerSpawns(_levels.CurrentLevel, _geometry.TileSize);
         _runner.Respawn(spawns.PlayerOne);
         _runnerTwo.Respawn(spawns.PlayerTwo);
         _clock.Reset();
@@ -870,7 +942,7 @@ internal sealed class GameForm : Form
 
     private void FirePulse(int playerId, Runner runner)
     {
-        var origin = runner.Position + (runner.Facing.ToVector() * 5f);
+        var origin = runner.Position + (runner.Facing.ToVector() * (runner.CollisionRadius + 2f));
         if (_projectiles.TryFire(playerId, origin, runner.Facing))
         {
             _audio.PlayFire();
@@ -892,12 +964,12 @@ internal sealed class GameForm : Form
         _pendingScoreIndex = 0;
         if (_profile.QualifiesForHighScore(_score.Score))
         {
-            _pendingScores.Add(new PendingScore(1, _score.Score, _rounds.RoundNumber));
+            _pendingScores.Add(new PendingScore(1, _score.Score, _levels.LevelNumber));
         }
 
         if (IsCooperative && _profile.QualifiesForHighScore(_scoreTwo.Score))
         {
-            _pendingScores.Add(new PendingScore(2, _scoreTwo.Score, _rounds.RoundNumber));
+            _pendingScores.Add(new PendingScore(2, _scoreTwo.Score, _levels.LevelNumber));
         }
 
         LoadPendingCallsign();
@@ -1029,7 +1101,7 @@ internal sealed class GameForm : Form
             5,
             55);
         graphics.DrawString(
-            $"CYCLE {_rounds.RoundNumber} ENEMY {_enemies.ActiveCount} SHOT {_projectiles.ActiveCount}",
+            $"LEVEL {_levels.LevelNumber} ENEMY {_enemies.ActiveCount} SHOT {_projectiles.ActiveCount}",
             font,
             foreground,
             5,
