@@ -14,6 +14,7 @@ using MazeHunter.Core.Spawning;
 using MazeHunter.Core.State;
 using MazeHunter.Core.Timing;
 using MazeHunter.Game.Audio;
+using MazeHunter.Game.Diagnostics;
 using MazeHunter.Game.Input;
 using MazeHunter.Game.Persistence;
 using MazeHunter.Game.Rendering;
@@ -29,7 +30,7 @@ internal sealed class GameForm : Form
     private Bitmap _mazeLayer;
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
     private readonly FixedStepClock _clock = new();
-    private readonly System.Windows.Forms.Timer _pump = new() { Interval = 16 };
+    private readonly System.Windows.Forms.Timer _pump = new() { Interval = 8 };
     private readonly KeyboardState _keyboard = new();
     private readonly Maze _maze = MazeCatalog.CreateSignalCrossing();
     private readonly Runner _runner;
@@ -45,12 +46,21 @@ internal sealed class GameForm : Form
     private readonly AudioSystem _audio = new();
     private readonly ProfileStore _profileStore = new();
     private readonly PlayerProfile _profile;
+    private readonly DiagnosticLog _log;
     private readonly List<PendingScore> _pendingScores = [];
     private readonly VisualEffectSystem _effects = new();
+    private readonly GameRenderResources _render = new();
     private int _pendingScoreIndex;
     private string _callsignBuffer = string.Empty;
     private long _previousTicks;
     private double _presentationTime;
+    private bool _diagnosticsEnabled;
+    private int _diagnosticFrames;
+    private double _diagnosticSampleSeconds;
+    private double _framesPerSecond;
+    private double _lastUpdateMilliseconds;
+    private long _lastAllocatedBytes = GC.GetTotalAllocatedBytes();
+    private double _allocatedBytesPerSecond;
 
     public GameForm()
     {
@@ -58,6 +68,8 @@ internal sealed class GameForm : Form
         _runner = new Runner(spawns.PlayerOne);
         _runnerTwo = new Runner(spawns.PlayerTwo);
         _profile = _profileStore.Load();
+        _log = new DiagnosticLog(Path.GetDirectoryName(_profileStore.ProfilePath) ?? ".");
+        _log.Write($"Startup .NET {Environment.Version} mode={_profile.Settings.LastMode}");
         _flow.SelectMode(_profile.Settings.LastMode);
         _audio.SetMuted(_profile.Settings.Muted);
         _mazeLayer = CreateMazeLayer();
@@ -86,7 +98,14 @@ internal sealed class GameForm : Form
             _clock.Reset();
             _keyboard.Clear();
         };
-        FormClosing += (_, _) => SaveProfileSafely();
+        FormClosing += (_, _) =>
+        {
+            SaveProfileSafely();
+            _log.Write(
+                $"Clean shutdown fps={_framesPerSecond:0.0} " +
+                $"updateMs={_lastUpdateMilliseconds:0.00} " +
+                $"allocKiBs={_allocatedBytesPerSecond / 1024:0.0}");
+        };
     }
 
     protected override void Dispose(bool disposing)
@@ -98,6 +117,7 @@ internal sealed class GameForm : Form
             _framebuffer.Dispose();
             _mazeLayer.Dispose();
             _audio.Dispose();
+            _render.Dispose();
         }
 
         base.Dispose(disposing);
@@ -107,6 +127,7 @@ internal sealed class GameForm : Form
     {
         base.OnPaint(e);
         RenderLogicalFrame();
+        _diagnosticFrames++;
 
         var scale = Math.Min(ClientSize.Width / (float)LogicalWidth, ClientSize.Height / (float)LogicalHeight);
         var width = Math.Max(1, (int)(LogicalWidth * scale));
@@ -151,10 +172,14 @@ internal sealed class GameForm : Form
         }
 
         var steps = _clock.AddElapsed(elapsed);
+        var updateStart = Stopwatch.GetTimestamp();
         for (var i = 0; i < steps; i++)
         {
             UpdateSimulation(_clock.StepSeconds);
         }
+        _lastUpdateMilliseconds =
+            (Stopwatch.GetTimestamp() - updateStart) * 1000d / Stopwatch.Frequency;
+        UpdateDiagnosticSample(elapsed);
 
         Invalidate();
     }
@@ -320,9 +345,10 @@ internal sealed class GameForm : Form
         graphics.TextRenderingHint = TextRenderingHint.SingleBitPerPixelGridFit;
 
         var pulse = (int)(20 + (Math.Sin(_presentationTime * 3) + 1) * 25);
-        using var glowBrush = new SolidBrush(Color.FromArgb(255, 55 + pulse, 218, 190));
-        using var titleFont = new Font(FontFamily.GenericMonospace, 13, FontStyle.Bold, GraphicsUnit.Pixel);
-        using var textFont = new Font(FontFamily.GenericMonospace, 9, FontStyle.Bold, GraphicsUnit.Pixel);
+        _render.GlowBrush.Color = Color.FromArgb(255, 55 + pulse, 218, 190);
+        var glowBrush = _render.GlowBrush;
+        var titleFont = _render.HeaderFont;
+        var textFont = _render.TextFont;
 
         if (_flow.Screen == GameScreen.Title)
         {
@@ -358,8 +384,8 @@ internal sealed class GameForm : Form
                 _profile.Settings.HighContrast ? Color.Cyan : Color.FromArgb(255, 85, 175, 255));
         }
 
-        using var accentBrush = new SolidBrush(Color.FromArgb(255, 240, 85, 150));
-        using var dimBrush = new SolidBrush(Color.FromArgb(255, 150, 164, 190));
+        var accentBrush = _render.AccentBrush;
+        var dimBrush = _render.DimBrush;
         if (IsCooperative)
         {
             DrawCentered(
@@ -390,6 +416,11 @@ internal sealed class GameForm : Form
         else if (_flow.Screen == GameScreen.GameOver)
         {
             RenderGameOver(graphics);
+        }
+
+        if (_diagnosticsEnabled)
+        {
+            RenderDiagnostics(graphics);
         }
     }
 
@@ -470,9 +501,9 @@ internal sealed class GameForm : Form
         const int tileSize = Runner.TileSize;
         var offsetX = (LogicalWidth - (_maze.Width * tileSize)) / 2;
         const int offsetY = 32;
-        using var shellBrush = new SolidBrush(Color.FromArgb(255, 178, 70, 255));
-        using var eyeBrush = new SolidBrush(Color.FromArgb(255, 110, 245, 255));
-        using var backgroundBrush = new SolidBrush(Color.FromArgb(255, 8, 13, 27));
+        var shellBrush = _render.EnemyShellBrush;
+        var eyeBrush = _render.EnemyEyeBrush;
+        var backgroundBrush = _render.BackgroundBrush;
 
         for (var i = 0; i < _enemies.Capacity; i++)
         {
@@ -514,8 +545,8 @@ internal sealed class GameForm : Form
         const int tileSize = Runner.TileSize;
         var offsetX = (LogicalWidth - (_maze.Width * tileSize)) / 2;
         const int offsetY = 32;
-        using var pulseBrush = new SolidBrush(Color.FromArgb(255, 255, 82, 164));
-        using var coreBrush = new SolidBrush(Color.White);
+        var pulseBrush = _render.PulseBrush;
+        var coreBrush = _render.CoreBrush;
 
         for (var i = 0; i < _projectiles.Capacity; i++)
         {
@@ -557,23 +588,24 @@ internal sealed class GameForm : Form
         var x = offsetX + (int)MathF.Round(runner.Position.X);
         var y = offsetY + (int)MathF.Round(runner.Position.Y);
 
-        using var shadowBrush = new SolidBrush(Color.FromArgb(255, 30, 52, 80));
-        using var runnerBrush = new SolidBrush(color);
+        var shadowBrush = _render.RunnerShadowBrush;
+        var runnerBrush = _render.RunnerBrush;
+        runnerBrush.Color = color;
         graphics.FillRectangle(shadowBrush, x - 4, y - 4, 8, 8);
 
-        Point[] arrow = runner.Facing switch
+        var arrow = _render.RunnerTriangle;
+        (arrow[0], arrow[1], arrow[2]) = runner.Facing switch
         {
-            Direction.Up => [new(x, y - 4), new(x - 3, y + 3), new(x + 3, y + 3)],
-            Direction.Down => [new(x, y + 4), new(x - 3, y - 3), new(x + 3, y - 3)],
-            Direction.Left => [new(x - 4, y), new(x + 3, y - 3), new(x + 3, y + 3)],
-            _ => [new(x + 4, y), new(x - 3, y - 3), new(x - 3, y + 3)]
+            Direction.Up => (new Point(x, y - 4), new Point(x - 3, y + 3), new Point(x + 3, y + 3)),
+            Direction.Down => (new Point(x, y + 4), new Point(x - 3, y - 3), new Point(x + 3, y - 3)),
+            Direction.Left => (new Point(x - 4, y), new Point(x + 3, y - 3), new Point(x + 3, y + 3)),
+            _ => (new Point(x + 4, y), new Point(x - 3, y - 3), new Point(x - 3, y + 3))
         };
         graphics.FillPolygon(runnerBrush, arrow);
 
         if (runner.AnimationFrame == 1)
         {
-            using var coreBrush = new SolidBrush(Color.White);
-            graphics.FillRectangle(coreBrush, x - 1, y - 1, 2, 2);
+            graphics.FillRectangle(_render.CoreBrush, x - 1, y - 1, 2, 2);
         }
     }
 
@@ -661,7 +693,7 @@ internal sealed class GameForm : Form
         const int tileSize = Runner.TileSize;
         var offsetX = (LogicalWidth - (_maze.Width * tileSize)) / 2;
         const int offsetY = 32;
-        using var pen = new Pen(Color.White, 1);
+        var pen = _render.EffectPen;
         for (var i = 0; i < _effects.Capacity; i++)
         {
             var effect = _effects[i];
@@ -718,6 +750,12 @@ internal sealed class GameForm : Form
 
     private void ProcessSystemInput()
     {
+        if (_keyboard.WasPressed(Keys.F3))
+        {
+            _diagnosticsEnabled = !_diagnosticsEnabled;
+            _log.Write($"Diagnostics {(_diagnosticsEnabled ? "enabled" : "disabled")}");
+        }
+
         if (_keyboard.WasPressed(Keys.F2))
         {
             _profile.Settings.HighContrast = !_profile.Settings.HighContrast;
@@ -940,11 +978,74 @@ internal sealed class GameForm : Form
         catch (IOException exception)
         {
             Debug.WriteLine($"Profile save failed: {exception}");
+            _log.Write($"Profile save failed: {exception.Message}");
         }
         catch (UnauthorizedAccessException exception)
         {
             Debug.WriteLine($"Profile save access failed: {exception}");
+            _log.Write($"Profile save access failed: {exception.Message}");
         }
+    }
+
+    private void UpdateDiagnosticSample(double elapsedSeconds)
+    {
+        _diagnosticSampleSeconds += elapsedSeconds;
+        if (_diagnosticSampleSeconds < 1)
+        {
+            return;
+        }
+
+        _framesPerSecond = _diagnosticFrames / _diagnosticSampleSeconds;
+        var allocatedBytes = GC.GetTotalAllocatedBytes();
+        _allocatedBytesPerSecond =
+            (allocatedBytes - _lastAllocatedBytes) / _diagnosticSampleSeconds;
+        _lastAllocatedBytes = allocatedBytes;
+        _diagnosticFrames = 0;
+        _diagnosticSampleSeconds = 0;
+    }
+
+    private void RenderDiagnostics(Graphics graphics)
+    {
+        using var background = new SolidBrush(Color.FromArgb(220, 0, 0, 0));
+        using var foreground = new SolidBrush(Color.FromArgb(255, 120, 255, 190));
+        using var font = new Font(FontFamily.GenericMonospace, 8, FontStyle.Regular, GraphicsUnit.Pixel);
+        graphics.FillRectangle(background, 2, 30, 156, 73);
+        graphics.DrawString(
+            $"FPS {_framesPerSecond,5:0.0}  UPDATE {_lastUpdateMilliseconds,5:0.00}ms",
+            font,
+            foreground,
+            5,
+            33);
+        graphics.DrawString(
+            $"ALLOC {_allocatedBytesPerSecond / 1024,7:0.0} KiB/s",
+            font,
+            foreground,
+            5,
+            44);
+        graphics.DrawString(
+            $"STATE {_flow.Screen} MODE {_flow.Mode}",
+            font,
+            foreground,
+            5,
+            55);
+        graphics.DrawString(
+            $"CYCLE {_rounds.RoundNumber} ENEMY {_enemies.ActiveCount} SHOT {_projectiles.ActiveCount}",
+            font,
+            foreground,
+            5,
+            66);
+        graphics.DrawString(
+            $"P1 {_playerLife.Lives}/{_playerLife.IsAlive} P2 {_playerTwoLife.Lives}/{_playerTwoLife.IsAlive}",
+            font,
+            foreground,
+            5,
+            77);
+        graphics.DrawString(
+            $"FX {_effects.ActiveCount} SEED 0x{_enemies.Seed:X8}",
+            font,
+            foreground,
+            5,
+            88);
     }
 
     private static char GetCallsignCharacter(Keys key)

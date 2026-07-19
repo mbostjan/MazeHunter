@@ -53,28 +53,30 @@ can be verified without opening a window.
   fixed projectile pool. Owner IDs route points, projectiles never query runner
   hits, hunters choose the nearest live runner, and `LocalTeamRules` defines
   survivor continuation, friendly-fire policy, and cycle recovery.
-- **Future Core systems:** state machine, input commands,
-  projectiles, enemy strategies/pathfinding, spawning, rounds, score, settings,
-  persistence, and diagnostic snapshots.
-- **Future platform systems:** keyboard adapter, renderer, asynchronous audio,
-  file store, and logging.
+- **Persistence/configuration:** `PlayerProfile` and `ProfileJson` own versioned
+  settings, callsigns, and leaderboard rules; `ProfileStore` owns per-user I/O.
+- **Diagnostics/logging:** F3 samples presentation FPS, update work, allocation
+  rate, entities, player state, round, seed, and flow state. A bounded per-user
+  log records lifecycle events and recoverable storage failures.
 
 ## Ownership and timing
 
-Core game state will be authoritative. Rendering consumes immutable snapshots
-and never decides rules. The UI timer merely pumps elapsed time; simulation
+Core game state is authoritative. Rendering reads that state but never decides
+rules. The 8 ms UI timer merely pumps elapsed time; simulation
 advances only in fixed 1/60-second increments. Wall-clock gaps are capped at
 250 ms to avoid a spiral after debugging or window stalls. Focus loss suspends
 simulation and clears accumulated time.
 
-Logical coordinates use 320×240 pixels. Maze geometry will use 8-pixel tiles,
+Logical coordinates use 320×240 pixels. Maze geometry uses 8-pixel tiles,
 with actor positions represented in logical pixels. Physical window size never
 changes gameplay coordinates.
 
 ## Performance target
 
-Maintain 60 simulation updates per second and smooth presentation at 1920×1080
-on an ordinary desktop, with steady-state gameplay allocations near zero.
+The measured Release target is 60 simulation updates per second and smooth
+presentation on an ordinary desktop. Final sampling produced approximately
+62.6 presentation FPS, less than 0.01 ms displayed update time, and 63 KiB/s
+allocation with the diagnostics overlay enabled.
 
 The static maze is pre-rendered into a palette-aware bitmap and reused each
 frame. Dynamic actors, projectiles, and bounded effects render over that layer.

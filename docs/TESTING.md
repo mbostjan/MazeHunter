@@ -1,53 +1,66 @@
 # Testing
 
-## Automated
+## Automated coverage
 
-Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1`.
-Current tests cover fixed-step accumulation, long-frame clamping, reset
-behavior, curated maze validity, connectivity, boundary enforcement, static
-collision, runner speed, wall stops, buffered turns, reversal, respawn reset,
-safe spawn placement, projectile movement, wall collision, tunneling prevention,
-lifetime, owner fire limits, and circle hits. Later milestones add scoring,
-advanced navigation, cycles, life rules, and storage. Drifter coverage includes
-seed reproducibility, long-run corridor safety, reversal rules, pool capacity,
-and projectile removal.
+Run:
 
-Advanced behavior tests prove shortest-route pursuit, predictive targeting,
-projectile-lane avoidance, evasive movement, and Surge speed. Round tests cover
-safe-distance spawn gating, quotas, reset, and escalation.
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1 -Configuration Release
+```
 
-Survival coverage verifies three-hit game over, respawn delay, protection,
-reset, enemy contact, and farthest-valid-tile selection. Scoring coverage
-verifies profile values, multiplier growth/cap, timeout, and cycle bonuses.
+The 65 automated tests cover:
 
-Flow tests cover initial title state, instructions, pause/resume simulation
-gating, game-over restart, return to title, and rejected invalid transitions.
+- fixed-step timing, clamping, and reset;
+- maze dimensions, boundary closure, connectivity, and invalid layouts;
+- static occupancy collision and out-of-bounds solidity;
+- runner speed, wall stops, reversal, buffered junction turns, and respawn reset;
+- safe solo, co-op, and teammate-aware spawn selection;
+- projectile speed, walls, tunneling, lifetime, limits, ownership, and hits;
+- deterministic random sequences and enemy navigation;
+- all six enemy profiles, nearest-runner targeting, and lane avoidance;
+- enemy pool capacity, contact, and destruction result positions;
+- round spawn safety, quotas, completion, reset, and escalation;
+- score values, chain growth/cap/expiry, cycle, life, and team bonuses;
+- life loss, respawn delay, protection, recovery, reset, and game over;
+- solo/co-op flow, pause gating, survivor rules, and no-friendly-fire policy;
+- JSON round trips, old/future/corrupt data, callsigns, settings, and leaderboard rules.
 
-Co-op tests cover mode selection, nearest-runner hunting, independent projectile
-ownership through existing owner-hit tests, friendly-fire policy, continuation
-with one survivor, both-player game over, recovery life, and team bonuses.
+## Verified release procedure
 
-Persistence tests cover JSON round trips, settings and timestamp preservation,
-malformed JSON, unsupported future versions, older-version normalization,
-callsign sanitation, leaderboard qualification, sorting, and top-ten trimming.
-File smoke tests may set `NEON_LABYRINTH_DATA_DIR` to isolate profile writes
-from the normal per-user directory.
+1. Run the Release build and test scripts.
+2. Run `scripts\package.ps1 -Version 1.0.0`.
+3. Confirm the output directory contains only `NeonLabyrinth.exe`.
+4. Launch that exact executable.
+5. Confirm the title renders, mode and accessibility keys respond, and audio initializes.
+6. Start solo, move, fire, pause, resume, restart, and return to the title.
+7. Start co-op, hold both players' movement keys simultaneously, and fire both pulses.
+8. Resize the window across aspect ratios and confirm crisp letterboxed scaling.
+9. Switch focus away and back; confirm input clears and timing does not jump.
+10. Close normally and confirm exit code 0, profile JSON, and diagnostic log creation.
 
-Audio smoke verification constructs and preloads all six synthesized WAV
-streams, invokes each asynchronous cue, and disposes every player. Accessibility
-settings are covered by profile round-trip tests; effect hit positions are
-covered by combat result tests.
+For isolated profile smoke tests, set `NEON_LABYRINTH_DATA_DIR` to a temporary
+directory before launch.
 
-## Milestone 1 manual smoke procedure
+## Performance evidence
 
-1. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1`.
-2. Confirm the Neon Labyrinth status screen animates.
-3. Resize to several aspect ratios; pixels remain crisp and content letterboxes.
-4. Switch focus away for several seconds and return; animation resumes without
-   a timing jump.
-5. Close the window; the process exits normally.
+The Release build was measured during a running game with F3 diagnostics:
 
-## Known limitations
+- presentation: approximately 62 FPS;
+- deterministic simulation: 60 updates/second;
+- sampled update work: below 0.01 ms at the observed precision;
+- allocation rate with diagnostics enabled: approximately 63 KiB/s in solo and
+  87 KiB/s during the final active co-op smoke;
+- working set of the self-contained build at title: approximately 49 MiB.
 
-Milestone 1 is an application foundation, not playable gameplay. Automated UI
-tests are intentionally deferred; platform-neutral rules receive priority.
+The static maze and GDI gameplay resources are cached. Core actor, enemy,
+projectile, effect, and pathfinding updates use bounded storage without
+steady-frame heap allocation.
+
+## Known non-critical limitations
+
+- Keyboard input only; controllers are deferred.
+- One curated maze ships in 1.0.
+- Windowed play only; the window remains freely resizable.
+- Local multiplayer only.
+- Rendering and audio require Windows desktop APIs, so automated tests focus on
+  the platform-neutral rules while packaged UI behavior is smoke-tested.

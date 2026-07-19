@@ -23,6 +23,8 @@ internal sealed class VisualEffectSystem
 
     public int Capacity => _effects.Length;
 
+    public int ActiveCount { get; private set; }
+
     public VisualEffect this[int index] => _effects[index];
 
     public void Spawn(VisualEffectKind kind, Vector2 position, bool reducedFlashes)
@@ -41,6 +43,7 @@ internal sealed class VisualEffectSystem
                 _ => reducedFlashes ? 0.1f : 0.25f
             };
             _effects[i] = new VisualEffect(true, kind, position, 0, duration);
+            ActiveCount++;
             return;
         }
     }
@@ -56,11 +59,21 @@ internal sealed class VisualEffectSystem
             }
 
             var age = effect.Age + deltaSeconds;
-            _effects[i] = age >= effect.Duration
-                ? default
-                : effect with { Age = age };
+            if (age >= effect.Duration)
+            {
+                _effects[i] = default;
+                ActiveCount--;
+            }
+            else
+            {
+                _effects[i] = effect with { Age = age };
+            }
         }
     }
 
-    public void Clear() => Array.Clear(_effects);
+    public void Clear()
+    {
+        Array.Clear(_effects);
+        ActiveCount = 0;
+    }
 }

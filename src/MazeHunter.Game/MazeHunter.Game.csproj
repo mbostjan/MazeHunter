@@ -5,9 +5,13 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>MazeHunter.Game</RootNamespace>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <AssemblyName>NeonLabyrinth</AssemblyName>
+    <Product>Neon Labyrinth</Product>
+    <Version>1.0.0</Version>
+    <Authors>Codex</Authors>
+    <Description>Original local solo and cooperative retro maze shooter for Windows.</Description>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\MazeHunter.Core\MazeHunter.Core.csproj" />
   </ItemGroup>
 </Project>
-

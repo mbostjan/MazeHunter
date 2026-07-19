@@ -57,8 +57,8 @@ event sounds are original runtime-generated PCM cues and can be muted with M.
 
 Construct values reflect danger and rarity. Consecutive eliminations without
 damage build a modest chain multiplier. Cycle completion awards speed and
-survival bonuses. Difficulty uses curated maze rotation, larger mixed waves,
-shorter spawn intervals, and new behaviors with explicit caps.
+survival bonuses. Difficulty uses larger mixed waves, shorter spawn intervals,
+new behaviors, and explicit active-enemy caps.
 
 Players begin with three lives. Contact removes the runner for 1.25 seconds,
 then selects the maze tile farthest from active constructs and grants two

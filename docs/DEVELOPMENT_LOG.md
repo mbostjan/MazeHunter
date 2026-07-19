@@ -121,3 +121,23 @@ No defects remain open for Milestone 1.
   hundreds of tile rectangles on every paint.
 - Added owner-colored pulses, brighter accessible runner colors, and effect
   position plumbing from authoritative combat results.
+
+## 2026-07-19 — Milestone 12 / 1.0.0
+
+- Added optional F3 diagnostics for FPS, update time, allocation rate, flow,
+  mode, cycle, entity counts, player lives/state, effects, and random seed.
+- Added a bounded per-user diagnostic log with safe failure behavior.
+- Cached steady-path GDI fonts, brushes, pens, and runner geometry.
+- Measured approximately 62.6 presentation FPS, less than 0.01 ms displayed
+  update work, 63 KiB/s allocation in solo, and 87 KiB/s in active co-op with
+  diagnostics enabled.
+- Verified 65 Release tests, zero compiler/format warnings, and all documented
+  PowerShell scripts.
+- Produced and launched the single-file self-contained Windows x64 executable;
+  it responded normally, created profile/log data, and exited with code 0.
+- Captured the packaged title screen and completed release documentation.
+- Final packaged smoke exercised solo and co-op simultaneous movement/fire,
+  pause/resume, resize, minimize/restore focus handling, restart, title return,
+  F3 diagnostics, versioned profile save, and clean exit code 0.
+- Final package: 116,035,144 bytes; SHA-256
+  `AE329B3D8628B2C01BFD3058012330982F5A72013FA517B2A400AC9BAC212C21`.

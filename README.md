@@ -1,57 +1,84 @@
 # Neon Labyrinth
 
-Neon Labyrinth is an original fixed-screen retro maze shooter for one or two local
-players. Players are signal runners trapped in a shifting defense grid, clearing
-hostile constructs with directional pulse shots. It draws on the broad arcade
-maze-shooter genre while using original names, rules, mazes, graphics, and audio.
+Neon Labyrinth is an original fixed-screen retro maze shooter for one or two
+local players. Signal runners clear escalating defense grids with directional
+pulse fire while six behaviorally distinct constructs roam, pursue, predict,
+evade firing lanes, surge, and flee.
 
-The current build contains the Milestone 2 foundation: a responsive Windows
-Forms shell, logical 320×240 framebuffer, fixed 60 Hz simulation, simultaneous
-keyboard tracking, a validated original tile maze, static collision rules, and
-a controllable animated signal runner with buffered corridor turns and
-directional pulses with original synthesized firing audio.
-The first enemy, the seeded maze-wandering Drifter construct, is active and can
-be destroyed by pulse fire.
-Progressive cycles add shortest-path Tracers, predictive Vectors, lane-aware
-Veils, fast Surges, and rare evasive Prisms.
-The playable survival loop now includes profile scoring, chain multipliers,
-three lives, delayed safe respawning, spawn protection, and game over/restart.
+The title, terminology, rules, maze, graphics, effects, and synthesized audio
+are original. The project uses C#/.NET 10 and Windows Forms without a game
+engine or runtime dependency in the packaged release.
 
-## Requirements
+![Neon Labyrinth title screen](docs/images/neon-labyrinth-title.png)
 
-- Windows 10 or later (x64)
-- .NET SDK 10.0.300 or a compatible .NET 10 patch SDK
+## Features
 
-## Commands
+- Complete solo and local cooperative survival loops
+- Fixed 60 Hz deterministic simulation and crisp 320x240 logical framebuffer
+- Responsive buffered corridor movement and simultaneous keyboard input
+- Drifter, Tracer, Vector, Veil, Surge, and rare Prism behaviors
+- Escalating cycles, individual scores, chains, lives, safe respawns, and game over
+- No co-op friendly fire; survivor progression and teammate cycle recovery
+- Versioned top-10 high scores and settings under `%LOCALAPPDATA%\NeonLabyrinth`
+- Six original programmatically synthesized sound cues
+- High-contrast and reduced-flash accessibility modes
+- Optional F3 performance/game-state diagnostics and bounded lifecycle logging
+
+## Controls
+
+| Action | Player 1 | Player 2 |
+|---|---|---|
+| Move | W, A, S, D | Arrow keys |
+| Fire | Space | Enter or Right Control |
+
+| System action | Key |
+|---|---|
+| Start last mode | Enter on title |
+| Start solo / co-op | 1 / 2 on title |
+| Instructions | I on title |
+| Pause / resume | P or Escape |
+| Restart while paused | R |
+| Return to title while paused | Q |
+| Mute | M |
+| High contrast | F2 |
+| Diagnostics | F3 |
+| Reduced flashes | F4 |
+
+Qualifying game-over scores prompt for a 1-8 character callsign. Backspace
+edits it and Enter saves it.
+
+## Build, test, and run
+
+Requirements for development are Windows 10 or later (x64) and .NET SDK
+10.0.300 or a compatible .NET 10 patch SDK.
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\package.ps1
 ```
 
-Direct equivalents are `dotnet build`, `dotnet test`, and
-`dotnet run --project src/MazeHunter.Game`.
+Direct equivalents are `dotnet build`, `dotnet test`, and:
 
-## Controls
+```powershell
+dotnet run --project .\src\MazeHunter.Game\MazeHunter.Game.csproj
+```
 
-Current controls are WASD to move, Space to fire, and M to mute. Planned
-Player 2 defaults are arrow keys plus Enter/Right Control; P/Escape will pause,
-F3 will toggle diagnostics, and Alt+Enter will toggle display mode.
+## Create the release
 
-From the title screen, Enter starts a solo run and I opens instructions. During
-play P or Escape pauses. From pause, R restarts and Q returns to the title.
-Press 2 on the title screen for local dual-link co-op. Player 2 moves with the
-arrow keys and fires with Enter or Right Control. Players score independently,
-cannot harm each other, and keep the run alive while either has remaining lives.
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\package.ps1 -Version 1.0.0
+```
 
-Qualifying game-over scores prompt for a 1-8 character callsign. The top ten,
-mute state, callsigns, and last-selected mode persist in versioned JSON at
-`%LOCALAPPDATA%\NeonLabyrinth\profile.json`; the title shows the top three.
+This creates the self-contained, single-file Windows x64 release at
+`artifacts\NeonLabyrinth-1.0.0-win-x64\NeonLabyrinth.exe`. The packaged game
+does not require a separately installed .NET runtime or administrator rights.
 
-Accessibility controls: F2 toggles the persisted high-contrast palette, F4
-toggles persisted reduced-flash effects, and M mutes all six original
-programmatically synthesized sound cues.
+## Project documentation
 
-See [GAME_DESIGN.md](docs/GAME_DESIGN.md) and [ROADMAP.md](docs/ROADMAP.md).
+- [Game design](docs/GAME_DESIGN.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Testing](docs/TESTING.md)
+- [Development log](docs/DEVELOPMENT_LOG.md)
+- [Changelog](CHANGELOG.md)

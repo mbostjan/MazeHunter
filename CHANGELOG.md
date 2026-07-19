@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.0 - 2026-07-19
 
 ### Added
 
@@ -28,3 +28,5 @@
   mute persistence, atomic replacement, and corruption recovery.
 - Complete six-cue synthesized audio set, fixed-pool feedback effects, cached
   maze rendering, high-contrast palette, and reduced-flash mode.
+- Optional diagnostics overlay and bounded lifecycle/error logging.
+- Self-contained single-file Windows x64 packaging and complete release docs.
