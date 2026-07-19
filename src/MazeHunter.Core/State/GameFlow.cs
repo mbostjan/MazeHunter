@@ -7,6 +7,8 @@ public sealed class GameFlow
 
     public bool SimulationRunning => Screen == GameScreen.Playing;
 
+    public GameMode Mode { get; private set; } = GameMode.Solo;
+
     public void ShowInstructions()
     {
         if (Screen == GameScreen.Title)
@@ -15,10 +17,15 @@ public sealed class GameFlow
         }
     }
 
-    public void StartGame()
+    public void StartGame(GameMode? mode = null)
     {
         if (Screen is GameScreen.Title or GameScreen.GameOver)
         {
+            if (mode is not null)
+            {
+                Mode = mode.Value;
+            }
+
             Screen = GameScreen.Playing;
         }
     }
@@ -49,4 +56,3 @@ public sealed class GameFlow
         }
     }
 }
-

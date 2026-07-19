@@ -14,7 +14,7 @@ and receive a focused Git commit.
 | 6 | Tracer, Vector, Veil, Surge, Prism; spawn director and cycle progression. | Complete |
 | 7 | Score, chains, lives, damage, protected respawn, game over. | Complete |
 | 8 | Title/mode menus, instructions, HUD, pause/restart, complete solo flow. | Complete |
-| 9 | Complete local co-op, independent controls/scores/lives, survivor rules. | Next |
-| 10 | Versioned JSON high scores/settings/mode with corruption recovery. | Planned |
+| 9 | Complete local co-op, independent controls/scores/lives, survivor rules. | Complete |
+| 10 | Versioned JSON high scores/settings/mode with corruption recovery. | Next |
 | 11 | Original pixel presentation, effects, complete generated audio, polish. | Planned |
 | 12 | Full tests, diagnostics/performance review, self-contained package, final docs and smoke test. | Planned |

@@ -87,3 +87,15 @@ No defects remain open for Milestone 1.
 - Consolidated solo HUD messaging for cycles, remaining signals, score, chain,
   lives, respawn state, and audio status.
 - Added transition and simulation-gating tests.
+
+## 2026-07-19 — Milestone 9
+
+- Added title-selectable solo and dual-link modes.
+- Added an independently controlled blue Player 2 with arrow movement,
+  Enter/Right-Control firing, separate projectile color, score, chain, and lives.
+- Added owner-routed scoring, disabled friendly fire, nearest-live-runner enemy
+  targeting, two-player spawn gating, and teammate-aware safe respawns.
+- Added survivor continuation, both-eliminated game over, shared survival
+  bonuses, and one protected recovery life at the next cleared cycle.
+- Added mode, nearest-target, recovery, team bonus, friendly-fire, and survivor
+  rule tests.

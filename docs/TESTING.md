@@ -23,6 +23,10 @@ verifies profile values, multiplier growth/cap, timeout, and cycle bonuses.
 Flow tests cover initial title state, instructions, pause/resume simulation
 gating, game-over restart, return to title, and rejected invalid transitions.
 
+Co-op tests cover mode selection, nearest-runner hunting, independent projectile
+ownership through existing owner-hit tests, friendly-fire policy, continuation
+with one survivor, both-player game over, recovery life, and team bonuses.
+
 ## Milestone 1 manual smoke procedure
 
 1. Run `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run.ps1`.

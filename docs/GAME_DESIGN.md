@@ -39,6 +39,13 @@ return at the next cleared cycle if the partner survives. Respawns choose the
 safest valid runner node and grant brief protection. The cycle continues while
 at least one runner remains. A team score bonus rewards both surviving.
 
+Player 1 uses WASD and Space; Player 2 uses arrow keys and Enter or Right
+Control. Pulse ownership awards the individual elimination score. Both players
+receive cycle/life bonuses, plus a shared-survival bonus when neither has been
+eliminated. Regular life loss uses delayed protected respawn; a fully eliminated
+partner returns with one protected life only after the survivor clears a cycle.
+Respawn selection also treats the active teammate as a hazard to avoid overlap.
+
 ## Scoring and progression
 
 Construct values reflect danger and rarity. Consecutive eliminations without

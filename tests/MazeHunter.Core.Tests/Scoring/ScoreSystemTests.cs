@@ -50,5 +50,13 @@ public sealed class ScoreSystemTests
         Assert.AreEqual(1700, awarded);
         Assert.AreEqual(1700, scoring.Score);
     }
-}
 
+    [TestMethod]
+    public void TeamSurvivalBonus_ScalesByRound()
+    {
+        var scoring = new ScoreSystem();
+
+        Assert.AreEqual(1000, scoring.RecordTeamSurvivalBonus(4));
+        Assert.AreEqual(1000, scoring.Score);
+    }
+}

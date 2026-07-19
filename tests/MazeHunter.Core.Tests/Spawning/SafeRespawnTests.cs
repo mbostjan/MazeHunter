@@ -22,5 +22,19 @@ public sealed class SafeRespawnTests
         Assert.IsTrue(maze.CanOccupy(spawn, Runner.CollisionRadius, Runner.TileSize));
         Assert.IsGreaterThan(10000f, Vector2.DistanceSquared(spawn, new Vector2(16, 12)));
     }
-}
 
+    [TestMethod]
+    public void SafestSpawn_AvoidsActiveTeammateWhenNoEnemiesRemain()
+    {
+        var maze = MazeCatalog.CreateSignalCrossing();
+        var enemies = new EnemySystem(seed: 1);
+        var teammate = new Vector2(12, 12);
+
+        var spawn = SpawnPlanner.FindSafestPlayerSpawn(
+            maze,
+            enemies,
+            teammatePosition: teammate);
+
+        Assert.IsGreaterThan(20000f, Vector2.DistanceSquared(spawn, teammate));
+    }
+}

@@ -22,3 +22,5 @@
   respawning, cycle bonuses, game over, and restart.
 - Original title/instructions presentation, authoritative flow state, complete
   solo HUD, pause/resume, in-run restart, and return-to-title controls.
+- Complete local co-op with independent runners, controls, scores, lives,
+  owner-colored shots, survivor rules, cycle recovery, and no friendly fire.

@@ -7,5 +7,6 @@ namespace MazeHunter.Core.Enemies;
 public readonly record struct EnemyContext(
     Vector2 PlayerPosition,
     Direction PlayerFacing,
-    ProjectileSystem? Projectiles = null);
-
+    ProjectileSystem? Projectiles = null,
+    Vector2? SecondPlayerPosition = null,
+    Direction SecondPlayerFacing = Direction.None);

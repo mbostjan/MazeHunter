@@ -226,26 +226,30 @@ public sealed class EnemySystem
         Maze maze,
         GridPoint tile,
         Enemy enemy,
-        EnemyContext context) =>
-        enemy.Kind switch
+        EnemyContext context)
+    {
+        var target = GetClosestTarget(enemy.Position, context);
+        return enemy.Kind switch
         {
-            EnemyKind.Tracer => ChooseToward(maze, tile, ToTile(context.PlayerPosition), enemy.Direction),
+            EnemyKind.Tracer => ChooseToward(maze, tile, ToTile(target.Position), enemy.Direction),
             EnemyKind.Vector => ChooseToward(
                 maze,
                 tile,
-                GetPredictionTile(maze, context.PlayerPosition, context.PlayerFacing),
+                GetPredictionTile(maze, target.Position, target.Facing),
                 enemy.Direction),
-            EnemyKind.Veil => ChooseVeilDirection(maze, tile, enemy.Direction, context),
-            EnemyKind.Surge => ChooseToward(maze, tile, ToTile(context.PlayerPosition), enemy.Direction),
-            EnemyKind.Prism => ChooseAway(maze, tile, ToTile(context.PlayerPosition), enemy.Direction),
+            EnemyKind.Veil => ChooseVeilDirection(maze, tile, enemy.Direction, context, target.Position),
+            EnemyKind.Surge => ChooseToward(maze, tile, ToTile(target.Position), enemy.Direction),
+            EnemyKind.Prism => ChooseAway(maze, tile, ToTile(target.Position), enemy.Direction),
             _ => ChooseDrifterDirection(maze, tile, enemy.Direction)
         };
+    }
 
     private Direction ChooseVeilDirection(
         Maze maze,
         GridPoint tile,
         Direction current,
-        EnemyContext context)
+        EnemyContext context,
+        Vector2 targetPosition)
     {
         Span<Direction> legal = stackalloc Direction[4];
         var count = GetLegalDirections(maze, tile, current, legal);
@@ -274,11 +278,11 @@ public sealed class EnemySystem
                     maze,
                     safe[..safeCount],
                     tile,
-                    ToTile(context.PlayerPosition));
+                    ToTile(targetPosition));
             }
         }
 
-        return ChooseBestToward(maze, legal[..count], tile, ToTile(context.PlayerPosition));
+        return ChooseBestToward(maze, legal[..count], tile, ToTile(targetPosition));
     }
 
     private Direction ChooseToward(Maze maze, GridPoint from, GridPoint target, Direction current)
@@ -499,6 +503,20 @@ public sealed class EnemySystem
 
     private static GridPoint ToTile(Vector2 position) =>
         new((int)MathF.Floor(position.X / Runner.TileSize), (int)MathF.Floor(position.Y / Runner.TileSize));
+
+    private static (Vector2 Position, Direction Facing) GetClosestTarget(
+        Vector2 enemyPosition,
+        EnemyContext context)
+    {
+        if (context.SecondPlayerPosition is not { } second ||
+            Vector2.DistanceSquared(enemyPosition, context.PlayerPosition) <=
+            Vector2.DistanceSquared(enemyPosition, second))
+        {
+            return (context.PlayerPosition, context.PlayerFacing);
+        }
+
+        return (second, context.SecondPlayerFacing);
+    }
 
     private static float GetSpeed(EnemyKind kind) => kind switch
     {

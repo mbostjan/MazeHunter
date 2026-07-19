@@ -42,5 +42,8 @@ F3 will toggle diagnostics, and Alt+Enter will toggle display mode.
 
 From the title screen, Enter starts a solo run and I opens instructions. During
 play P or Escape pauses. From pause, R restarts and Q returns to the title.
+Press 2 on the title screen for local dual-link co-op. Player 2 moves with the
+arrow keys and fires with Enter or Right Control. Players score independently,
+cannot harm each other, and keep the run alive while either has remaining lives.
 
 See [GAME_DESIGN.md](docs/GAME_DESIGN.md) and [ROADMAP.md](docs/ROADMAP.md).

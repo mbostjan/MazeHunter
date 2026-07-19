@@ -50,6 +50,14 @@ public sealed class ScoreSystem
         return awarded;
     }
 
+    public int RecordTeamSurvivalBonus(int roundNumber)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(roundNumber, 1);
+        var awarded = roundNumber * 250;
+        Score += awarded;
+        return awarded;
+    }
+
     public void ResetChain()
     {
         Chain = 0;
@@ -72,4 +80,3 @@ public sealed class ScoreSystem
         _ => 100
     };
 }
-

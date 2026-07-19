@@ -26,7 +26,12 @@ public sealed class RoundDirector
 
     public bool RoundAdvancedThisUpdate { get; private set; }
 
-    public void Update(Maze maze, EnemySystem enemies, Vector2 playerPosition, float deltaSeconds)
+    public void Update(
+        Maze maze,
+        EnemySystem enemies,
+        Vector2 playerPosition,
+        float deltaSeconds,
+        Vector2? secondPlayerPosition = null)
     {
         ArgumentNullException.ThrowIfNull(maze);
         ArgumentNullException.ThrowIfNull(enemies);
@@ -58,7 +63,10 @@ public sealed class RoundDirector
 
         var entry = SpawnPlanner.FindEnemyEntry(maze);
         if (Vector2.DistanceSquared(entry, playerPosition) <
-            MinimumPlayerSpawnDistance * MinimumPlayerSpawnDistance)
+                MinimumPlayerSpawnDistance * MinimumPlayerSpawnDistance ||
+            (secondPlayerPosition is { } second &&
+             Vector2.DistanceSquared(entry, second) <
+             MinimumPlayerSpawnDistance * MinimumPlayerSpawnDistance))
         {
             _spawnTimer = 0.25f;
             return;

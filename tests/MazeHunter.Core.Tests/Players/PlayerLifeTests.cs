@@ -65,5 +65,26 @@ public sealed class PlayerLifeTests
         Assert.IsTrue(life.IsAlive);
         Assert.IsFalse(life.IsProtected);
     }
-}
 
+    [TestMethod]
+    public void CycleRecovery_ReturnsEliminatedPlayerWithOneProtectedLife()
+    {
+        var life = new PlayerLife();
+        for (var hit = 0; hit < 3; hit++)
+        {
+            life.TryDamage();
+            if (hit < 2)
+            {
+                life.Update(PlayerLife.RespawnDelaySeconds);
+                life.CompleteRespawn();
+                life.Update(PlayerLife.ProtectionSeconds);
+            }
+        }
+
+        life.ReviveForNextRound();
+
+        Assert.AreEqual(1, life.Lives);
+        Assert.IsTrue(life.IsAlive);
+        Assert.IsTrue(life.IsProtected);
+    }
+}

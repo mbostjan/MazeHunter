@@ -26,7 +26,11 @@ public static class SpawnPlanner
         return ToCenter(tile, tileSize);
     }
 
-    public static Vector2 FindSafestPlayerSpawn(Maze maze, EnemySystem enemies, int tileSize = 8)
+    public static Vector2 FindSafestPlayerSpawn(
+        Maze maze,
+        EnemySystem enemies,
+        int tileSize = 8,
+        Vector2? teammatePosition = null)
     {
         ArgumentNullException.ThrowIfNull(maze);
         ArgumentNullException.ThrowIfNull(enemies);
@@ -38,6 +42,11 @@ public static class SpawnPlanner
         {
             var center = ToCenter(tile, tileSize);
             var closestEnemyDistance = float.PositiveInfinity;
+            if (teammatePosition is { } teammate)
+            {
+                closestEnemyDistance = Vector2.DistanceSquared(center, teammate);
+            }
+
             for (var i = 0; i < enemies.Capacity; i++)
             {
                 if (enemies[i].Active)

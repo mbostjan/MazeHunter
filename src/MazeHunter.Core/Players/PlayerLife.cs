@@ -75,5 +75,17 @@ public sealed class PlayerLife
         _respawnTimer = 0;
         _protectionTimer = 0;
     }
-}
 
+    public void ReviveForNextRound()
+    {
+        if (!IsGameOver)
+        {
+            throw new InvalidOperationException("Only an eliminated player can receive a cycle recovery.");
+        }
+
+        Lives = 1;
+        IsAlive = true;
+        _respawnTimer = 0;
+        _protectionTimer = ProtectionSeconds;
+    }
+}

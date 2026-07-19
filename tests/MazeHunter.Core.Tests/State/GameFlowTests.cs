@@ -67,5 +67,14 @@ public sealed class GameFlowTests
 
         Assert.AreEqual(GameScreen.Title, flow.Screen);
     }
-}
 
+    [TestMethod]
+    public void StartGame_RecordsSelectedLocalMode()
+    {
+        var flow = new GameFlow();
+
+        flow.StartGame(GameMode.Cooperative);
+
+        Assert.AreEqual(GameMode.Cooperative, flow.Mode);
+    }
+}

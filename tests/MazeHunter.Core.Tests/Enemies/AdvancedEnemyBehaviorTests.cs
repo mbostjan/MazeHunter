@@ -96,4 +96,22 @@ public sealed class AdvancedEnemyBehaviorTests
 
         Assert.IsGreaterThan(tracer[0].Position.X, surge[0].Position.X);
     }
+
+    [TestMethod]
+    public void Hunter_TargetsNearestLiveRunnerInCooperativeContext()
+    {
+        var enemies = new EnemySystem(seed: 1);
+        enemies.TrySpawn(EnemyKind.Tracer, new Vector2(28, 28));
+
+        enemies.Update(
+            CrossMaze,
+            0.1f,
+            new EnemyContext(
+                new Vector2(12, 28),
+                Direction.Right,
+                SecondPlayerPosition: new Vector2(36, 28),
+                SecondPlayerFacing: Direction.Left));
+
+        Assert.AreEqual(Direction.Right, enemies[0].Direction);
+    }
 }

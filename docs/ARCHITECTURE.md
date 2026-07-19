@@ -46,6 +46,10 @@ can be verified without opening a window.
 - **Flow state:** `GameFlow` is the authoritative title/instructions/playing/
   paused/game-over state machine. Only `Playing` permits simulation advancement;
   presentation and input adapters cannot invent transitions.
+- **Local co-op:** two runner/life/score channels share enemies, rounds, and the
+  fixed projectile pool. Owner IDs route points, projectiles never query runner
+  hits, hunters choose the nearest live runner, and `LocalTeamRules` defines
+  survivor continuation, friendly-fire policy, and cycle recovery.
 - **Future Core systems:** state machine, input commands,
   projectiles, enemy strategies/pathfinding, spawning, rounds, score, settings,
   persistence, and diagnostic snapshots.

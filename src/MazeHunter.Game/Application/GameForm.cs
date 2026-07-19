@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
+using System.Numerics;
 using MazeHunter.Core.Actors;
 using MazeHunter.Core.Combat;
 using MazeHunter.Core.Enemies;
@@ -28,11 +29,14 @@ internal sealed class GameForm : Form
     private readonly KeyboardState _keyboard = new();
     private readonly Maze _maze = MazeCatalog.CreateSignalCrossing();
     private readonly Runner _runner;
+    private readonly Runner _runnerTwo;
     private readonly ProjectileSystem _projectiles = new();
     private readonly EnemySystem _enemies = new(seed: 0x4E454F4E);
     private readonly RoundDirector _rounds = new();
     private readonly PlayerLife _playerLife = new();
+    private readonly PlayerLife _playerTwoLife = new();
     private readonly ScoreSystem _score = new();
+    private readonly ScoreSystem _scoreTwo = new();
     private readonly GameFlow _flow = new();
     private readonly AudioSystem _audio = new();
     private long _previousTicks;
@@ -40,7 +44,9 @@ internal sealed class GameForm : Form
 
     public GameForm()
     {
-        _runner = new Runner(SpawnPlanner.FindPlayerSpawns(_maze).PlayerOne);
+        var spawns = SpawnPlanner.FindPlayerSpawns(_maze);
+        _runner = new Runner(spawns.PlayerOne);
+        _runnerTwo = new Runner(spawns.PlayerTwo);
         Text = "Neon Labyrinth";
         ClientSize = new Size(960, 720);
         MinimumSize = new Size(640, 520);
@@ -142,40 +148,92 @@ internal sealed class GameForm : Form
         }
 
         _score.Update(deltaSeconds);
+        if (IsCooperative)
+        {
+            _scoreTwo.Update(deltaSeconds);
+        }
+
         if (_playerLife.Update(deltaSeconds))
         {
-            _runner.Respawn(SpawnPlanner.FindSafestPlayerSpawn(_maze, _enemies));
+            _runner.Respawn(SpawnPlanner.FindSafestPlayerSpawn(
+                _maze,
+                _enemies,
+                teammatePosition: IsCooperative && _playerTwoLife.IsAlive ? _runnerTwo.Position : null));
             _playerLife.CompleteRespawn();
+        }
+
+        if (IsCooperative && _playerTwoLife.Update(deltaSeconds))
+        {
+            _runnerTwo.Respawn(SpawnPlanner.FindSafestPlayerSpawn(
+                _maze,
+                _enemies,
+                teammatePosition: _playerLife.IsAlive ? _runner.Position : null));
+            _playerTwoLife.CompleteRespawn();
         }
 
         if (_playerLife.IsAlive)
         {
-            _runner.Update(_maze, GetRequestedDirection(), deltaSeconds);
+            _runner.Update(_maze, GetPlayerOneDirection(), deltaSeconds);
             if (_keyboard.WasPressed(Keys.Space))
             {
-                var origin = _runner.Position + (_runner.Facing.ToVector() * 5f);
-                if (_projectiles.TryFire(1, origin, _runner.Facing))
-                {
-                    _audio.PlayFire();
-                }
+                FirePulse(1, _runner);
+            }
+        }
+
+        if (IsCooperative && _playerTwoLife.IsAlive)
+        {
+            _runnerTwo.Update(_maze, GetPlayerTwoDirection(), deltaSeconds);
+            if (_keyboard.WasPressed(Keys.Enter) || _keyboard.WasPressed(Keys.RControlKey))
+            {
+                FirePulse(2, _runnerTwo);
             }
         }
 
         _projectiles.Update(_maze, deltaSeconds);
-        _rounds.Update(_maze, _enemies, _runner.Position, deltaSeconds);
+        var primaryRunner = IsCooperative && !_playerLife.IsAlive && _playerTwoLife.IsAlive
+            ? _runnerTwo
+            : _runner;
+        Vector2? secondTarget = IsCooperative && _playerLife.IsAlive && _playerTwoLife.IsAlive
+            ? _runnerTwo.Position
+            : null;
+        _rounds.Update(_maze, _enemies, primaryRunner.Position, deltaSeconds, secondTarget);
         if (_rounds.RoundAdvancedThisUpdate)
         {
             _score.RecordRoundCompleted(_rounds.RoundNumber - 1, _playerLife.Lives);
+            if (IsCooperative)
+            {
+                _scoreTwo.RecordRoundCompleted(_rounds.RoundNumber - 1, _playerTwoLife.Lives);
+                if (!_playerLife.IsGameOver && !_playerTwoLife.IsGameOver)
+                {
+                    _score.RecordTeamSurvivalBonus(_rounds.RoundNumber - 1);
+                    _scoreTwo.RecordTeamSurvivalBonus(_rounds.RoundNumber - 1);
+                }
+
+                RecoverEliminatedPartner();
+            }
         }
 
+        var primaryFacing = ReferenceEquals(primaryRunner, _runner) ? _runner.Facing : _runnerTwo.Facing;
         _enemies.Update(
             _maze,
             deltaSeconds,
-            new EnemyContext(_runner.Position, _runner.Facing, _projectiles));
-        while (_enemies.TryDestroyWithProjectiles(_projectiles, out _, out var destroyedKind))
+            new EnemyContext(
+                primaryRunner.Position,
+                primaryFacing,
+                _projectiles,
+                secondTarget,
+                _runnerTwo.Facing));
+        while (_enemies.TryDestroyWithProjectiles(_projectiles, out var ownerId, out var destroyedKind))
         {
             _rounds.NotifyEnemyDefeated();
-            _score.RecordEnemyDestroyed(destroyedKind);
+            if (ownerId == 2 && IsCooperative)
+            {
+                _scoreTwo.RecordEnemyDestroyed(destroyedKind);
+            }
+            else
+            {
+                _score.RecordEnemyDestroyed(destroyedKind);
+            }
         }
 
         if (_playerLife.IsAlive &&
@@ -184,11 +242,22 @@ internal sealed class GameForm : Form
         {
             _score.ResetChain();
             _projectiles.Clear();
-            if (_playerLife.IsGameOver)
-            {
-                _enemies.Clear();
-                _flow.EndGame();
-            }
+        }
+
+        if (IsCooperative &&
+            _playerTwoLife.IsAlive &&
+            _enemies.HasContact(_runnerTwo.Position, Runner.CollisionRadius) &&
+            _playerTwoLife.TryDamage())
+        {
+            _scoreTwo.ResetChain();
+            _projectiles.Clear();
+        }
+
+        if (LocalTeamRules.IsRunOver(_flow.Mode, _playerLife, _playerTwoLife))
+        {
+            _enemies.Clear();
+            _projectiles.Clear();
+            _flow.EndGame();
         }
 
         _keyboard.EndUpdate();
@@ -225,16 +294,36 @@ internal sealed class GameForm : Form
         RenderMaze(graphics);
         RenderProjectiles(graphics);
         RenderEnemies(graphics);
-        RenderRunner(graphics);
+        RenderRunner(graphics, _runner, _playerLife, Color.FromArgb(255, 255, 206, 72));
+        if (IsCooperative)
+        {
+            RenderRunner(graphics, _runnerTwo, _playerTwoLife, Color.FromArgb(255, 85, 175, 255));
+        }
 
         using var accentBrush = new SolidBrush(Color.FromArgb(255, 240, 85, 150));
-        var status = _playerLife.IsAlive
-            ? $"SCORE {_score.Score:000000}  CHAIN x{_score.Multiplier}  LIVES {_playerLife.Lives}"
-            : $"SIGNAL LOST // RETURN IN {_playerLife.RespawnSecondsRemaining:0.0}";
-        DrawCentered(graphics, status, textFont, accentBrush, 222);
         using var dimBrush = new SolidBrush(Color.FromArgb(255, 150, 164, 190));
-        var footer = _audio.Muted ? "SPACE FIRE // M AUDIO ON" : "SPACE FIRE // M MUTE";
-        DrawCentered(graphics, footer, textFont, dimBrush, 232);
+        if (IsCooperative)
+        {
+            DrawCentered(
+                graphics,
+                GetPlayerHud("P1", _score, _playerLife),
+                textFont,
+                accentBrush,
+                220);
+            DrawCentered(
+                graphics,
+                GetPlayerHud("P2", _scoreTwo, _playerTwoLife),
+                textFont,
+                dimBrush,
+                231);
+        }
+        else
+        {
+            var status = GetPlayerHud("P1", _score, _playerLife);
+            DrawCentered(graphics, status, textFont, accentBrush, 222);
+            var footer = _audio.Muted ? "SPACE FIRE // M AUDIO ON" : "SPACE FIRE // M MUTE";
+            DrawCentered(graphics, footer, textFont, dimBrush, 232);
+        }
 
         if (_flow.Screen == GameScreen.Paused)
         {
@@ -267,9 +356,9 @@ internal sealed class GameForm : Form
         DrawCentered(graphics, "NEON", largeFont, glowBrush, 50);
         DrawCentered(graphics, "LABYRINTH", largeFont, subtitleBrush, 80);
         DrawCentered(graphics, "A SIGNAL-RUNNER ARCADE", textFont, textBrush, 122);
-        DrawCentered(graphics, "ENTER  SOLO LINK", textFont, glowBrush, 158);
-        DrawCentered(graphics, "I      HOW TO PLAY", textFont, textBrush, 176);
-        DrawCentered(graphics, "M      TOGGLE AUDIO", textFont, textBrush, 190);
+        DrawCentered(graphics, "1 / ENTER  SOLO LINK", textFont, glowBrush, 154);
+        DrawCentered(graphics, "2          DUAL LINK", textFont, subtitleBrush, 170);
+        DrawCentered(graphics, "I HOW TO PLAY   M AUDIO", textFont, textBrush, 188);
         DrawCentered(graphics, "ORIGINAL CODE // ART // AUDIO", textFont, dimBrush, 222);
     }
 
@@ -281,11 +370,12 @@ internal sealed class GameForm : Form
         DrawCentered(graphics, "SIGNAL PROTOCOL", headingFont, glowBrush, 20);
         DrawCentered(graphics, "W A S D     MOVE", textFont, textBrush, 64);
         DrawCentered(graphics, "SPACE       FIRE PULSE", textFont, textBrush, 82);
-        DrawCentered(graphics, "P / ESC     PAUSE", textFont, textBrush, 100);
-        DrawCentered(graphics, "M           MUTE", textFont, textBrush, 118);
-        DrawCentered(graphics, "CLEAR EVERY HOSTILE SIGNAL", textFont, accentBrush, 148);
-        DrawCentered(graphics, "CHAIN HITS FOR UP TO 4x SCORE", textFont, textBrush, 164);
-        DrawCentered(graphics, "THREE LINKS // SURVIVE THE GRID", textFont, textBrush, 180);
+        DrawCentered(graphics, "ARROWS      P2 MOVE", textFont, textBrush, 100);
+        DrawCentered(graphics, "ENTER/RCTRL P2 FIRE", textFont, textBrush, 118);
+        DrawCentered(graphics, "P / ESC PAUSE    M MUTE", textFont, textBrush, 136);
+        DrawCentered(graphics, "CLEAR EVERY HOSTILE SIGNAL", textFont, accentBrush, 158);
+        DrawCentered(graphics, "NO FRIENDLY FIRE // SCORE ALONE", textFont, textBrush, 176);
+        DrawCentered(graphics, "ONE SURVIVOR KEEPS THE LINK", textFont, textBrush, 192);
         DrawCentered(graphics, "ENTER OR ESC TO RETURN", textFont, glowBrush, 214);
     }
 
@@ -362,6 +452,9 @@ internal sealed class GameForm : Form
                 continue;
             }
 
+            pulseBrush.Color = projectile.OwnerId == 2
+                ? Color.FromArgb(255, 80, 175, 255)
+                : Color.FromArgb(255, 255, 82, 164);
             var x = offsetX + (int)MathF.Round(projectile.Position.X);
             var y = offsetY + (int)MathF.Round(projectile.Position.Y);
             if (projectile.Direction.IsVertical())
@@ -377,10 +470,10 @@ internal sealed class GameForm : Form
         }
     }
 
-    private void RenderRunner(Graphics graphics)
+    private void RenderRunner(Graphics graphics, Runner runner, PlayerLife life, Color color)
     {
-        if (!_playerLife.IsAlive ||
-            (_playerLife.IsProtected && ((int)(_presentationTime * 10) & 1) == 0))
+        if (!life.IsAlive ||
+            (life.IsProtected && ((int)(_presentationTime * 10) & 1) == 0))
         {
             return;
         }
@@ -388,14 +481,14 @@ internal sealed class GameForm : Form
         const int tileSize = Runner.TileSize;
         var offsetX = (LogicalWidth - (_maze.Width * tileSize)) / 2;
         const int offsetY = 32;
-        var x = offsetX + (int)MathF.Round(_runner.Position.X);
-        var y = offsetY + (int)MathF.Round(_runner.Position.Y);
+        var x = offsetX + (int)MathF.Round(runner.Position.X);
+        var y = offsetY + (int)MathF.Round(runner.Position.Y);
 
         using var shadowBrush = new SolidBrush(Color.FromArgb(255, 30, 52, 80));
-        using var runnerBrush = new SolidBrush(Color.FromArgb(255, 255, 206, 72));
+        using var runnerBrush = new SolidBrush(color);
         graphics.FillRectangle(shadowBrush, x - 4, y - 4, 8, 8);
 
-        Point[] arrow = _runner.Facing switch
+        Point[] arrow = runner.Facing switch
         {
             Direction.Up => [new(x, y - 4), new(x - 3, y + 3), new(x + 3, y + 3)],
             Direction.Down => [new(x, y + 4), new(x - 3, y - 3), new(x + 3, y - 3)],
@@ -404,7 +497,7 @@ internal sealed class GameForm : Form
         };
         graphics.FillPolygon(runnerBrush, arrow);
 
-        if (_runner.AnimationFrame == 1)
+        if (runner.AnimationFrame == 1)
         {
             using var coreBrush = new SolidBrush(Color.White);
             graphics.FillRectangle(coreBrush, x - 1, y - 1, 2, 2);
@@ -422,7 +515,10 @@ internal sealed class GameForm : Form
         using var titleBrush = new SolidBrush(Color.FromArgb(255, 255, 82, 164));
         using var textBrush = new SolidBrush(Color.White);
         DrawCentered(graphics, "LINK TERMINATED", titleFont, titleBrush, 94);
-        DrawCentered(graphics, $"FINAL SCORE {_score.Score:000000}", textFont, textBrush, 126);
+        var finalScore = IsCooperative
+            ? $"P1 {_score.Score:000000}  P2 {_scoreTwo.Score:000000}"
+            : $"FINAL SCORE {_score.Score:000000}";
+        DrawCentered(graphics, finalScore, textFont, textBrush, 126);
         DrawCentered(graphics, "ENTER TO RECONNECT", textFont, textBrush, 145);
     }
 
@@ -454,14 +550,20 @@ internal sealed class GameForm : Form
         }
     }
 
-    private Direction GetRequestedDirection()
+    private Direction GetPlayerOneDirection() =>
+        GetDirection(Keys.W, Keys.S, Keys.A, Keys.D);
+
+    private Direction GetPlayerTwoDirection() =>
+        GetDirection(Keys.Up, Keys.Down, Keys.Left, Keys.Right);
+
+    private Direction GetDirection(Keys up, Keys down, Keys left, Keys right)
     {
         var direction = Direction.None;
         var newest = -1L;
-        Select(Keys.W, Direction.Up);
-        Select(Keys.S, Direction.Down);
-        Select(Keys.A, Direction.Left);
-        Select(Keys.D, Direction.Right);
+        Select(up, Direction.Up);
+        Select(down, Direction.Down);
+        Select(left, Direction.Left);
+        Select(right, Direction.Right);
         return direction;
 
         void Select(Keys key, Direction candidate)
@@ -485,10 +587,15 @@ internal sealed class GameForm : Form
         switch (_flow.Screen)
         {
             case GameScreen.Title:
-                if (_keyboard.WasPressed(Keys.Enter))
+                if (_keyboard.WasPressed(Keys.Enter) || _keyboard.WasPressed(Keys.D1))
                 {
                     ResetGame();
-                    _flow.StartGame();
+                    _flow.StartGame(GameMode.Solo);
+                }
+                else if (_keyboard.WasPressed(Keys.D2))
+                {
+                    ResetGame();
+                    _flow.StartGame(GameMode.Cooperative);
                 }
                 else if (_keyboard.WasPressed(Keys.I))
                 {
@@ -547,10 +654,60 @@ internal sealed class GameForm : Form
         _projectiles.Clear();
         _rounds.Reset();
         _score.Reset();
+        _scoreTwo.Reset();
         _playerLife.Reset();
-        _runner.Respawn(SpawnPlanner.FindPlayerSpawns(_maze).PlayerOne);
+        _playerTwoLife.Reset();
+        var spawns = SpawnPlanner.FindPlayerSpawns(_maze);
+        _runner.Respawn(spawns.PlayerOne);
+        _runnerTwo.Respawn(spawns.PlayerTwo);
         _clock.Reset();
     }
+
+    private void FirePulse(int playerId, Runner runner)
+    {
+        var origin = runner.Position + (runner.Facing.ToVector() * 5f);
+        if (_projectiles.TryFire(playerId, origin, runner.Facing))
+        {
+            _audio.PlayFire();
+        }
+    }
+
+    private void RecoverEliminatedPartner()
+    {
+        if (LocalTeamRules.ShouldRecoverAtNextRound(_flow.Mode, _playerLife, _playerTwoLife))
+        {
+            _playerLife.ReviveForNextRound();
+            _runner.Respawn(SpawnPlanner.FindSafestPlayerSpawn(
+                _maze,
+                _enemies,
+                teammatePosition: _runnerTwo.Position));
+        }
+        else if (LocalTeamRules.ShouldRecoverAtNextRound(_flow.Mode, _playerTwoLife, _playerLife))
+        {
+            _playerTwoLife.ReviveForNextRound();
+            _runnerTwo.Respawn(SpawnPlanner.FindSafestPlayerSpawn(
+                _maze,
+                _enemies,
+                teammatePosition: _runner.Position));
+        }
+    }
+
+    private static string GetPlayerHud(string label, ScoreSystem score, PlayerLife life)
+    {
+        if (life.IsGameOver)
+        {
+            return $"{label} OFFLINE  SCORE {score.Score:000000}";
+        }
+
+        if (!life.IsAlive)
+        {
+            return $"{label} RETURN {life.RespawnSecondsRemaining:0.0}  SCORE {score.Score:000000}";
+        }
+
+        return $"{label} {score.Score:000000} x{score.Multiplier} L{life.Lives}";
+    }
+
+    private bool IsCooperative => _flow.Mode == GameMode.Cooperative;
 
     private static void DrawCentered(Graphics graphics, string text, Font font, Brush brush, float y)
     {
