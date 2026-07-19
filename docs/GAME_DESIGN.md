@@ -26,6 +26,11 @@ cooperative positioning.
 - **Surge:** fast late-cycle hunter with clearly telegraphed activation.
 - **Prism:** rare evasive bonus construct worth substantial score.
 
+Profiles unlock progressively: Tracer in cycle 1, Vector in cycle 2, Veil in
+cycle 3, and Surge in cycle 4. Prism appears as a rare seventh spawn. Active
+enemy count is capped at six, and the entry node pauses whenever a runner is
+within 48 logical pixels.
+
 ## Two-player design
 
 Two players cooperate to clear the same cycle while keeping individual scores.
@@ -51,4 +56,3 @@ original generated audio/visuals, diagnostics, tests, and x64 packaging.
 
 Controllers, online play, editor/modding, replays, achievements, campaigns,
 platform integration, and additional visual themes.
-

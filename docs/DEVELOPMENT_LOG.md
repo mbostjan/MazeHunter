@@ -56,3 +56,13 @@ No defects remain open for Milestone 1.
   sequence, and projectile destruction tests.
 - Smoke measurement exposed excessive repaint pumping at a 1 ms timer interval;
   changed presentation pumping to 16 ms while retaining independent 60 Hz rules.
+
+## 2026-07-19 — Milestone 6
+
+- Added Tracer shortest-path pursuit, Vector predictive interception, Veil
+  projectile-lane avoidance, fast Surge pursuit, and evasive Prism navigation.
+- Added stack-backed breadth-first path distances with no navigation heap churn.
+- Added per-profile speeds, palette silhouettes, deterministic progressive
+  composition, active caps, spawn intervals, and 48-pixel entry safety.
+- Added cycle quotas, 1.5-second completion interlude, and automatic escalation.
+- Added behavior-specific and round spawn/progression tests.

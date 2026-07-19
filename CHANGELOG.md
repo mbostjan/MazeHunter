@@ -16,3 +16,5 @@
   asynchronous firing audio with mute control.
 - Seeded fixed-pool Drifter enemies with fair tile-center navigation and
   projectile destruction.
+- Five advanced enemy profiles plus safe spawn direction, escalating quotas,
+  progressive compositions, and automatic cycle advancement.

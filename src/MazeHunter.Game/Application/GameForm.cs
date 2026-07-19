@@ -5,6 +5,7 @@ using MazeHunter.Core.Actors;
 using MazeHunter.Core.Combat;
 using MazeHunter.Core.Enemies;
 using MazeHunter.Core.Mazes;
+using MazeHunter.Core.Rounds;
 using MazeHunter.Core.Spawning;
 using MazeHunter.Core.Timing;
 using MazeHunter.Game.Audio;
@@ -26,6 +27,7 @@ internal sealed class GameForm : Form
     private readonly Runner _runner;
     private readonly ProjectileSystem _projectiles = new();
     private readonly EnemySystem _enemies = new(seed: 0x4E454F4E);
+    private readonly RoundDirector _rounds = new();
     private readonly AudioSystem _audio = new();
     private long _previousTicks;
     private double _presentationTime;
@@ -33,7 +35,6 @@ internal sealed class GameForm : Form
     public GameForm()
     {
         _runner = new Runner(SpawnPlanner.FindPlayerSpawns(_maze).PlayerOne);
-        _enemies.TrySpawnDrifter(SpawnPlanner.FindEnemyEntry(_maze));
         Text = "Neon Labyrinth";
         ClientSize = new Size(960, 720);
         MinimumSize = new Size(640, 520);
@@ -143,8 +144,15 @@ internal sealed class GameForm : Form
         }
 
         _projectiles.Update(_maze, deltaSeconds);
-        _enemies.Update(_maze, deltaSeconds);
-        _enemies.TryDestroyWithProjectiles(_projectiles, out _);
+        _rounds.Update(_maze, _enemies, _runner.Position, deltaSeconds);
+        _enemies.Update(
+            _maze,
+            deltaSeconds,
+            new EnemyContext(_runner.Position, _runner.Facing, _projectiles));
+        while (_enemies.TryDestroyWithProjectiles(_projectiles, out _, out _))
+        {
+            _rounds.NotifyEnemyDefeated();
+        }
         _keyboard.EndUpdate();
     }
 
@@ -160,7 +168,10 @@ internal sealed class GameForm : Form
         using var titleFont = new Font(FontFamily.GenericMonospace, 13, FontStyle.Bold, GraphicsUnit.Pixel);
         using var textFont = new Font(FontFamily.GenericMonospace, 9, FontStyle.Bold, GraphicsUnit.Pixel);
 
-        DrawCentered(graphics, "NEON LABYRINTH // RUNNER LINK", titleFont, glowBrush, 8);
+        var header = _rounds.IsCompleting
+            ? $"CYCLE {_rounds.RoundNumber} CLEARED"
+            : $"CYCLE {_rounds.RoundNumber:00} // SIGNALS {_rounds.RemainingThisRound:00}";
+        DrawCentered(graphics, header, titleFont, glowBrush, 8);
         RenderMaze(graphics);
         RenderProjectiles(graphics);
         RenderEnemies(graphics);
@@ -193,7 +204,25 @@ internal sealed class GameForm : Form
 
             var x = offsetX + (int)MathF.Round(enemy.Position.X);
             var y = offsetY + (int)MathF.Round(enemy.Position.Y);
-            graphics.FillRectangle(shellBrush, x - 3, y - 3, 7, 7);
+            shellBrush.Color = enemy.Kind switch
+            {
+                EnemyKind.Tracer => Color.FromArgb(255, 255, 80, 105),
+                EnemyKind.Vector => Color.FromArgb(255, 255, 148, 48),
+                EnemyKind.Veil => Color.FromArgb(255, 82, 160, 255),
+                EnemyKind.Surge => Color.FromArgb(255, 255, 235, 72),
+                EnemyKind.Prism => Color.FromArgb(255, 110, 255, 150),
+                _ => Color.FromArgb(255, 178, 70, 255)
+            };
+
+            if (enemy.Kind == EnemyKind.Prism)
+            {
+                graphics.FillEllipse(shellBrush, x - 4, y - 4, 8, 8);
+            }
+            else
+            {
+                graphics.FillRectangle(shellBrush, x - 3, y - 3, 7, 7);
+            }
+
             graphics.FillRectangle(backgroundBrush, x - 1, y - 1, 3, 3);
             var eyeOffset = enemy.AnimationFrame == 0 ? -2 : 2;
             graphics.FillRectangle(eyeBrush, x + eyeOffset, y, 1, 1);

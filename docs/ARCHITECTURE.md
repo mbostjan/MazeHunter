@@ -33,6 +33,11 @@ can be verified without opening a window.
 - **Enemies:** fixed-capacity entity storage uses seeded gameplay randomness.
   Drifters decide only at tile centers, prefer forward travel, reject avoidable
   reversals, and collide through the same maze queries as runners.
+- **Navigation profiles:** stack-backed breadth-first distance searches guide
+  direct and predictive hunters without heap allocation. Veil checks clear
+  projectile lanes before path selection; Prism maximizes path distance.
+- **Rounds:** `RoundDirector` owns quotas, type composition, active caps,
+  distance-gated spawn timing, completion delay, and escalating cycle state.
 - **Future Core systems:** state machine, input commands,
   projectiles, enemy strategies/pathfinding, spawning, rounds, score, settings,
   persistence, and diagnostic snapshots.

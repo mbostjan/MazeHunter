@@ -12,6 +12,8 @@ a controllable animated signal runner with buffered corridor turns and
 directional pulses with original synthesized firing audio.
 The first enemy, the seeded maze-wandering Drifter construct, is active and can
 be destroyed by pulse fire.
+Progressive cycles add shortest-path Tracers, predictive Vectors, lane-aware
+Veils, fast Surges, and rare evasive Prisms.
 
 ## Requirements
 
